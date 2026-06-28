@@ -1,0 +1,141 @@
+# ==========================================================================
+# Wearly monorepo .gitignore  (Java/Spring backend + Flutter frontend)
+# ==========================================================================
+
+# --------------------------------------------------------------------------
+# Sensitive information — NEVER commit these
+# --------------------------------------------------------------------------
+# Spring profile-specific configs holding secrets
+**/application-prod.yml
+**/application-prod.yaml
+**/application-prod.properties
+**/application-secret.yml
+**/application-secret.yaml
+**/application-local.yml
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# API keys / credentials / certificates
+**/secrets/
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+**/serviceAccountKey.json
+**/google-services.json
+**/GoogleService-Info.plist
+
+# ==========================================================================
+# Java / Spring Boot / Gradle / Maven  (backend/)
+# ==========================================================================
+
+# Compiled class files
+*.class
+
+# Build output
+target/
+build/
+out/
+bin/
+!**/src/**/bin/
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Maven
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+logs/
+
+# Packaged artifacts
+*.jar
+*.war
+*.ear
+*.nar
+!gradle/wrapper/gradle-wrapper.jar
+!**/maven-wrapper.jar
+
+# Virtual machine crash logs
+hs_err_pid*
+replay_pid*
+
+# ==========================================================================
+# Flutter / Dart  (frontend/)
+# ==========================================================================
+
+# Dart / Flutter tooling
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+**/doc/api/
+build/
+
+# Flutter version / fvm
+.fvm/
+
+# Symbolication & obfuscation
+app.*.symbols
+app.*.map.json
+
+# Coverage
+coverage/
+
+# Android (Flutter)
+**/android/**/gradle-wrapper.jar
+**/android/.gradle/
+**/android/captures/
+**/android/key.properties
+**/android/local.properties
+**/android/app/release/
+*.iml
+
+# iOS / macOS (Flutter)
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Pods/
+**/ios/.symlinks/
+**/Flutter/App.framework
+**/Flutter/Flutter.framework
+**/Flutter/Flutter.podspec
+**/macos/Pods/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# ==========================================================================
+# IDEs & editors
+# ==========================================================================
+.idea/
+*.ipr
+*.iws
+.vscode/
+!.vscode/extensions.json
+.settings/
+.project
+.classpath
+*.swp
+*~
+
+# ==========================================================================
+# OS-generated files
+# ==========================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini

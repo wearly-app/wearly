@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: wearly
+  profiles:
+    active: dev
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true

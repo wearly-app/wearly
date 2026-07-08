@@ -3,11 +3,14 @@ spring:
     name: wearly
   profiles:
     active: dev
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   jpa:
     properties:
       hibernate:
         format_sql: true
-
 
 jwt:
   secret: ${JWT_SECRET}

@@ -8,6 +8,18 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+<<<<<<< HEAD
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+=======
+
+cloud:
+  aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID}
+      secret-key: ${AWS_SECRET_ACCESS_KEY}
+    region: ${AWS_REGION}
+    s3:
+      bucket: ${AWS_S3_BUCKET}
+>>>>>>> ba4a42a (feat: integrate S3 image upload with presigned URL for clothes API (#8))

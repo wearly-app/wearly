@@ -7,10 +7,12 @@ import com.wearly.domain.clothes.dto.response.ClothesAnalyzeResponse;
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.domain.clothes.service.ClothesService;
 import com.wearly.global.common.entity.Style;
+import com.wearly.global.security.WearlyUserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -42,10 +44,10 @@ public class ClothesController {
 
     @PostMapping
     public ResponseEntity<ClothesResponse> createClothes(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal WearlyUserPrincipal principal,
             @Valid @RequestBody ClothesCreateRequest request
     ) {
-        ClothesResponse response = clothesService.createClothes(userId, request);
+        ClothesResponse response = clothesService.createClothes(principal.getUserId(), request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -54,42 +56,45 @@ public class ClothesController {
 
     @GetMapping
     public ResponseEntity<List<ClothesResponse>> getClothesList(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal WearlyUserPrincipal principal,
             @RequestParam(required = false) Category category,
             @RequestParam(required = false) Style style
     ) {
-        List<ClothesResponse> response = clothesService.getClothesList(userId, category, style);
+        List<ClothesResponse> response = clothesService.getClothesList(
+                principal.getUserId(),
+                category,
+                style);
 
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ClothesResponse> getClothes(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal WearlyUserPrincipal principal,
             @PathVariable Long id
     ) {
-        ClothesResponse response = clothesService.getClothes(userId, id);
+        ClothesResponse response = clothesService.getClothes(principal.getUserId(), id);
 
         return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<ClothesResponse> updateClothes(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal WearlyUserPrincipal principal,
             @PathVariable Long id,
             @Valid @RequestBody ClothesUpdateRequest request
     ) {
-        ClothesResponse response = clothesService.updateClothes(userId, id, request);
+        ClothesResponse response = clothesService.updateClothes(principal.getUserId(), id, request);
 
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteClothes(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal WearlyUserPrincipal principal,
             @PathVariable Long id
     ) {
-        clothesService.deleteClothes(userId, id);
+        clothesService.deleteClothes(principal.getUserId(), id);
 
         return ResponseEntity.noContent().build();
     }

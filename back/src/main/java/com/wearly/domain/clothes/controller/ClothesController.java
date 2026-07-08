@@ -8,6 +8,7 @@ import com.wearly.domain.clothes.entity.Category;
 import com.wearly.domain.clothes.service.ClothesService;
 import com.wearly.global.common.entity.Style;
 import com.wearly.global.security.WearlyUserPrincipal;
+import com.wearly.infra.s3.S3ImageStorage;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -33,13 +34,20 @@ import java.util.List;
 public class ClothesController {
 
     private final ClothesService clothesService;
+    private final S3ImageStorage s3ImageStorage;
 
     @PostMapping("/analyze")
     public ResponseEntity<ClothesAnalyzeResponse> analyzeClothesImage(
             @RequestPart MultipartFile image
     ) {
-        // TODO: S3 업로드 + AI 분석 연동 후 구현
-        return ResponseEntity.ok(null);
+        String imageKey = s3ImageStorage.upload(image);
+
+        ClothesAnalyzeResponse response = ClothesAnalyzeResponse.builder()
+                .imageUrl(imageKey)
+                .build();
+        // TODO: rembg 배경제거 + Vision API 연동 후 category/style/color/brand/material/thickness/cloValue 채우기
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping

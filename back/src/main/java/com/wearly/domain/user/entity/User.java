@@ -28,4 +28,12 @@ public class User extends BaseEntity {
 
     @Column(length = 100)
     private String email;
+
+    public static User create(String kakaoId, String name, String email) {
+        User user = new User();
+        user.kakaoId = kakaoId;
+        user.name = name;
+        user.email = email;
+        return user;
+    }
 }

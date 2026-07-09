@@ -28,7 +28,16 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
   String? _selectedId;
   final bool _isPortrait = true; // 3:4 vs 1:1
   String _selectedCategory = '전체';
-  final List<String> _categories = const ['전체', '상의', '하의', '아우터', '원피스', '신발', '가방', '기타'];
+  final List<String> _categories = const [
+    '전체',
+    '상의',
+    '하의',
+    '아우터',
+    '원피스',
+    '신발',
+    '가방',
+    '기타'
+  ];
 
   // AI weather simulation states
   String? _activeRescueDay;
@@ -55,7 +64,9 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
             final isTop = clothing.category == '상의' || i == 0;
             const scaleVal = 1.3;
             final itemSize = baseSize * scaleVal + 40;
-            final topOffset = isTop ? (canvasH - itemSize) / 2 - 100 : (canvasH - itemSize) / 2 + 15;
+            final topOffset = isTop
+                ? (canvasH - itemSize) / 2 - 100
+                : (canvasH - itemSize) / 2 + 15;
             final leftOffset = (canvasW - itemSize) / 2;
 
             _items.add(CanvasItem(
@@ -80,14 +91,18 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                   Expanded(
                     child: Text(
                       '✨ AI 코디 추천: 선택하신 스마트 구출 코디 조합 2벌이 배치되었습니다!',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13),
                     ),
                   ),
                 ],
               ),
               backgroundColor: Colors.green.shade600,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -153,7 +168,8 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                 builder: (_) => SaveOutfitPage(
                   items: _items,
                   onRefresh: widget.onRefresh,
-                  isAIRecommendedMode: widget.isAIRecommendedMode || _activeRescueDay != null,
+                  isAIRecommendedMode:
+                      widget.isAIRecommendedMode || _activeRescueDay != null,
                 ),
               ),
             ),
@@ -164,7 +180,8 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text('다음',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
             ),
           ),
           const SizedBox(width: 12),
@@ -185,15 +202,20 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                 ),
                 child: Column(
                   children: [
-                    if (widget.isAIRecommendedMode) _buildWeatherTimeline(canvasW),
+                    if (widget.isAIRecommendedMode)
+                      _buildWeatherTimeline(canvasW),
                     Expanded(
                       child: GestureDetector(
                         onTap: () => setState(() => _selectedId = null),
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
-                            ..._items.where((i) => i.id != _selectedId).map((item) => _buildCanvasItem(item)),
-                            ..._items.where((i) => i.id == _selectedId).map((item) => _buildCanvasItem(item)),
+                            ..._items
+                                .where((i) => i.id != _selectedId)
+                                .map((item) => _buildCanvasItem(item)),
+                            ..._items
+                                .where((i) => i.id == _selectedId)
+                                .map((item) => _buildCanvasItem(item)),
                           ],
                         ),
                       ),
@@ -243,12 +265,15 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                     width: baseSize * item.scale,
                     height: baseSize * item.scale,
                     child: item.clothing.imageBytes != null
-                        ? Image.memory(item.clothing.imageBytes!, fit: BoxFit.contain)
+                        ? Image.memory(item.clothing.imageBytes!,
+                            fit: BoxFit.contain)
                         : item.clothing.assetPath != null
-                            ? Image.asset(item.clothing.assetPath!, fit: BoxFit.contain)
+                            ? Image.asset(item.clothing.assetPath!,
+                                fit: BoxFit.contain)
                             : Container(
                                 decoration: BoxDecoration(
-                                  color: item.clothing.fallbackColor.withValues(alpha: 0.3),
+                                  color: item.clothing.fallbackColor
+                                      .withValues(alpha: 0.3),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(item.clothing.fallbackIcon,
@@ -264,7 +289,8 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                   top: 0,
                   child: _controlBtn(
                     onTap: _flipSelected,
-                    child: const Icon(Icons.flip, size: 14, color: Color(0xFF1A1A1A)),
+                    child: const Icon(Icons.flip,
+                        size: 14, color: Color(0xFF1A1A1A)),
                   ),
                 ),
                 Positioned(
@@ -272,7 +298,8 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                   top: 0,
                   child: _controlBtn(
                     onTap: _deleteSelected,
-                    child: const Icon(Icons.delete_outline, size: 14, color: Color(0xFF1A1A1A)),
+                    child: const Icon(Icons.delete_outline,
+                        size: 14, color: Color(0xFF1A1A1A)),
                   ),
                 ),
                 Positioned(
@@ -291,11 +318,14 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                        boxShadow: [
+                          BoxShadow(color: Colors.black26, blurRadius: 4)
+                        ],
                       ),
                       child: Transform.rotate(
                         angle: math.pi / 4,
-                        child: const Icon(Icons.open_in_full, size: 14, color: Color(0xFF1A1A1A)),
+                        child: const Icon(Icons.open_in_full,
+                            size: 14, color: Color(0xFF1A1A1A)),
                       ),
                     ),
                   ),
@@ -349,17 +379,23 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                   return GestureDetector(
                     onTap: () => setState(() => _selectedCategory = c),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: sel ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4),
+                        color: sel
+                            ? const Color(0xFF1A1A1A)
+                            : const Color(0xFFF4F4F4),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(c,
                           style: TextStyle(
                               fontSize: 12,
-                              fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-                              color: sel ? Colors.white : const Color(0xFF666666))),
+                              fontWeight:
+                                  sel ? FontWeight.w700 : FontWeight.w500,
+                              color: sel
+                                  ? Colors.white
+                                  : const Color(0xFF666666))),
                     ),
                   );
                 },
@@ -371,7 +407,8 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
               child: filteredWardrobe.isEmpty
                   ? Center(
                       child: Text('해당 카테고리에 옷이 없습니다.',
-                          style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 13)),
                     )
                   : ListView.separated(
                       scrollDirection: Axis.horizontal,
@@ -391,24 +428,32 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                if (item.imageBytes != null || item.assetPath != null)
+                                if (item.imageBytes != null ||
+                                    item.assetPath != null)
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(6),
                                     child: SizedBox(
-                                      width: 52, height: 52,
+                                      width: 52,
+                                      height: 52,
                                       child: item.imageBytes != null
-                                          ? Image.memory(item.imageBytes!, fit: BoxFit.cover)
-                                          : Image.asset(item.assetPath!, fit: BoxFit.cover),
+                                          ? Image.memory(item.imageBytes!,
+                                              fit: BoxFit.cover)
+                                          : Image.asset(item.assetPath!,
+                                              fit: BoxFit.cover),
                                     ),
                                   )
                                 else
-                                  Icon(item.fallbackIcon, size: 36, color: item.fallbackColor),
+                                  Icon(item.fallbackIcon,
+                                      size: 36, color: item.fallbackColor),
                                 const SizedBox(height: 4),
                                 Text(item.brand,
-                                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                    style: const TextStyle(
+                                        fontSize: 9, color: Colors.grey),
                                     overflow: TextOverflow.ellipsis),
                                 Text(item.name,
-                                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600),
                                     overflow: TextOverflow.ellipsis,
                                     textAlign: TextAlign.center),
                               ],
@@ -449,7 +494,8 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
+        border:
+            Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
       ),
       child: Row(
         children: [
@@ -457,9 +503,15 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
             child: Row(
               children: [
                 Icon(
-                  tempStr.contains('☀️') ? Icons.wb_sunny : (tempStr.contains('⛅') ? Icons.wb_cloudy_outlined : Icons.cloudy_snowing),
+                  tempStr.contains('☀️')
+                      ? Icons.wb_sunny
+                      : (tempStr.contains('⛅')
+                          ? Icons.wb_cloudy_outlined
+                          : Icons.cloudy_snowing),
                   size: 18,
-                  color: tempStr.contains('☀️') ? Colors.orange : (tempStr.contains('⛅') ? Colors.amber : Colors.blue),
+                  color: tempStr.contains('☀️')
+                      ? Colors.orange
+                      : (tempStr.contains('⛅') ? Colors.amber : Colors.blue),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -469,14 +521,20 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                     children: [
                       Text(
                         '$dateStr 날씨 정보',
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w500),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '$tempStr · $weatherDesc',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF333333)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -491,7 +549,8 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
             child: GestureDetector(
               onTap: _triggerDayWarpScenario,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF9C27B0), Color(0xFF3F51B5)],
@@ -513,11 +572,15 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.auto_awesome, color: Colors.white, size: 12),
+                      const Icon(Icons.auto_awesome,
+                          color: Colors.white, size: 12),
                       const SizedBox(width: 6),
                       const Text(
                         'AI 추천: 날씨 맞춤 방치 의류 구출!',
-                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800),
                       ),
                     ],
                   ),
@@ -633,7 +696,9 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
               backgroundColor: Colors.transparent,
               child: Container(
                 padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24)),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -647,24 +712,30 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                         );
                       },
                       child: Container(
-                        width: 56, height: 56,
+                        width: 56,
+                        height: 56,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: SweepGradient(colors: [Colors.transparent, Color(0xFF1A1A1A)]),
+                          gradient: SweepGradient(
+                              colors: [Colors.transparent, Color(0xFF1A1A1A)]),
                         ),
                         child: Container(
                           margin: const EdgeInsets.all(5),
-                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                          child: const Icon(Icons.auto_awesome, size: 22, color: Color(0xFF1A1A1A)),
+                          decoration: const BoxDecoration(
+                              color: Colors.white, shape: BoxShape.circle),
+                          child: const Icon(Icons.auto_awesome,
+                              size: 22, color: Color(0xFF1A1A1A)),
                         ),
                       ),
                     ),
                     const SizedBox(height: 18),
                     const Text('AI 스타일리스트',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
                     Text('$statusText${'.' * dotCount}',
-                        style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                        style:
+                            const TextStyle(fontSize: 13, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -704,14 +775,18 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
               Expanded(
                 child: Text(
                   successMessage,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13),
                 ),
               ),
             ],
           ),
           backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           duration: const Duration(seconds: 3),
         ),
       );

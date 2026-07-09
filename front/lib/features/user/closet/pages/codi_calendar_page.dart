@@ -13,7 +13,8 @@ class CodiCalendarPage extends StatefulWidget {
 
 class _CodiCalendarPageState extends State<CodiCalendarPage> {
   DateTime _selectedDate = DateTime(2026, 6, 6); // Demo day June 6, 2026
-  DateTime _currentMonth = DateTime(2026, 6);   // Current displayed month in calendar
+  DateTime _currentMonth =
+      DateTime(2026, 6); // Current displayed month in calendar
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +50,8 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                   // Calendar Card
                   Container(
                     margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -72,25 +74,32 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                               onPressed: () {
                                 setState(() {
                                   if (_currentMonth.month == 1) {
-                                    _currentMonth = DateTime(_currentMonth.year - 1, 12);
+                                    _currentMonth =
+                                        DateTime(_currentMonth.year - 1, 12);
                                   } else {
-                                    _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
+                                    _currentMonth = DateTime(_currentMonth.year,
+                                        _currentMonth.month - 1);
                                   }
                                 });
                               },
                             ),
                             Text(
                               '${_currentMonth.year}년 ${_currentMonth.month}월',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1A1A1A)),
                             ),
                             IconButton(
                               icon: const Icon(Icons.chevron_right, size: 20),
                               onPressed: () {
                                 setState(() {
                                   if (_currentMonth.month == 12) {
-                                    _currentMonth = DateTime(_currentMonth.year + 1, 1);
+                                    _currentMonth =
+                                        DateTime(_currentMonth.year + 1, 1);
                                   } else {
-                                    _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
+                                    _currentMonth = DateTime(_currentMonth.year,
+                                        _currentMonth.month + 1);
                                   }
                                 });
                               },
@@ -100,7 +109,8 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                         const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: const ['일', '월', '화', '수', '목', '금', '토'].map((day) {
+                          children: const ['일', '월', '화', '수', '목', '금', '토']
+                              .map((day) {
                             final isWeekend = day == '일' || day == '토';
                             return SizedBox(
                               width: 32,
@@ -111,7 +121,9 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: isWeekend
-                                      ? (day == '일' ? const Color(0xFFEF5350) : const Color(0xFF42A5F5))
+                                      ? (day == '일'
+                                          ? const Color(0xFFEF5350)
+                                          : const Color(0xFF42A5F5))
                                       : const Color(0xFF9E9E9E),
                                 ),
                               ),
@@ -122,7 +134,8 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                         GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 7,
                             mainAxisSpacing: 6,
                             crossAxisSpacing: 6,
@@ -137,16 +150,19 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
 
                             final currentDate = DateTime(year, month, dayNum);
                             final isSelected = _selectedDate.day == dayNum &&
-                                               _selectedDate.month == month &&
-                                               _selectedDate.year == year;
+                                _selectedDate.month == month &&
+                                _selectedDate.year == year;
 
                             final hasRecord = wornHistory.any((r) =>
-                              r.date.year == year && r.date.month == month && r.date.day == dayNum
-                            );
+                                r.date.year == year &&
+                                r.date.month == month &&
+                                r.date.day == dayNum);
 
                             final hasRescue = wornHistory.any((r) =>
-                              r.date.year == year && r.date.month == month && r.date.day == dayNum && r.outfit.title.contains('AI')
-                            );
+                                r.date.year == year &&
+                                r.date.month == month &&
+                                r.date.day == dayNum &&
+                                r.outfit.title.contains('AI'));
 
                             return GestureDetector(
                               onTap: () {
@@ -160,13 +176,23 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                       ? const Color(0xFF1A1A1A)
                                       : (hasRescue
                                           ? const Color(0xFFE8EAF6)
-                                          : (hasRecord ? const Color(0xFFF3E5F5) : Colors.transparent)),
+                                          : (hasRecord
+                                              ? const Color(0xFFF3E5F5)
+                                              : Colors.transparent)),
                                   shape: BoxShape.circle,
                                   border: isSelected
-                                      ? Border.all(color: const Color(0xFF1A1A1A))
+                                      ? Border.all(
+                                          color: const Color(0xFF1A1A1A))
                                       : (hasRescue
-                                          ? Border.all(color: const Color(0xFFC5CAE9), width: 1.5)
-                                          : (hasRecord ? Border.all(color: const Color(0xFFE1BEE7), width: 1.5) : null)),
+                                          ? Border.all(
+                                              color: const Color(0xFFC5CAE9),
+                                              width: 1.5)
+                                          : (hasRecord
+                                              ? Border.all(
+                                                  color:
+                                                      const Color(0xFFE1BEE7),
+                                                  width: 1.5)
+                                              : null)),
                                 ),
                                 child: Center(
                                   child: Column(
@@ -181,7 +207,10 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                               ? Colors.white
                                               : (hasRescue
                                                   ? const Color(0xFF1A237E)
-                                                  : (hasRecord ? const Color(0xFF4A148C) : const Color(0xFF333333))),
+                                                  : (hasRecord
+                                                      ? const Color(0xFF4A148C)
+                                                      : const Color(
+                                                          0xFF333333))),
                                         ),
                                       ),
                                       if (hasRecord && !isSelected)
@@ -190,7 +219,9 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                           height: 4,
                                           margin: const EdgeInsets.only(top: 2),
                                           decoration: BoxDecoration(
-                                            color: hasRescue ? Colors.indigo : Colors.purple,
+                                            color: hasRescue
+                                                ? Colors.indigo
+                                                : Colors.purple,
                                             shape: BoxShape.circle,
                                           ),
                                         ),
@@ -206,14 +237,19 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                   ),
 
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Row(
                       children: [
-                        const Icon(Icons.timeline, size: 20, color: Color(0xFF1A1A1A)),
+                        const Icon(Icons.timeline,
+                            size: 20, color: Color(0xFF1A1A1A)),
                         const SizedBox(width: 8),
                         Text(
                           '${_selectedDate.month}월 ${_selectedDate.day}일 착용 코디',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1A1A1A)),
                         ),
                       ],
                     ),
@@ -231,9 +267,12 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
   }
 
   Widget _buildTimelineContent(List<WornRecord> wornHistory) {
-    final records = wornHistory.where((r) =>
-      r.date.year == _selectedDate.year && r.date.month == _selectedDate.month && r.date.day == _selectedDate.day
-    ).toList();
+    final records = wornHistory
+        .where((r) =>
+            r.date.year == _selectedDate.year &&
+            r.date.month == _selectedDate.month &&
+            r.date.day == _selectedDate.day)
+        .toList();
 
     if (records.isEmpty) {
       return Container(
@@ -249,12 +288,16 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.grey.shade100),
               ),
-              child: Icon(Icons.edit_calendar_outlined, size: 24, color: Colors.grey.shade300),
+              child: Icon(Icons.edit_calendar_outlined,
+                  size: 24, color: Colors.grey.shade300),
             ),
             const SizedBox(height: 8),
             Text(
               '이 날짜에 기록된 코디가 없습니다.',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500),
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade500),
             ),
             const SizedBox(height: 8),
             ElevatedButton.icon(
@@ -262,12 +305,15 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A1A1A),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 elevation: 0,
               ),
               icon: const Icon(Icons.add, size: 12),
-              label: const Text('코디 만들고 착용 기록하기', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              label: const Text('코디 만들고 착용 기록하기',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -299,8 +345,11 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                   Container(
                     width: 5,
                     decoration: BoxDecoration(
-                      color: record.outfit.title.contains('AI') ? Colors.indigo : Colors.purple,
-                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                      color: record.outfit.title.contains('AI')
+                          ? Colors.indigo
+                          : Colors.purple,
+                      borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(16)),
                     ),
                   ),
                   Expanded(
@@ -315,7 +364,8 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: Colors.purple.shade50,
                                       borderRadius: BorderRadius.circular(20),
@@ -332,16 +382,20 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                   if (record.outfit.title.contains('AI')) ...[
                                     const SizedBox(width: 6),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFE8EAF6),
                                         borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: Colors.indigo.shade200, width: 0.8),
+                                        border: Border.all(
+                                            color: Colors.indigo.shade200,
+                                            width: 0.8),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.auto_awesome, size: 10, color: Colors.indigo),
+                                          const Icon(Icons.auto_awesome,
+                                              size: 10, color: Colors.indigo),
                                           const SizedBox(width: 3),
                                           Text(
                                             'AI 구출',
@@ -369,7 +423,9 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
-                                      color: record.temp >= 25 ? Colors.orange.shade700 : Colors.blue.shade700,
+                                      color: record.temp >= 25
+                                          ? Colors.orange.shade700
+                                          : Colors.blue.shade700,
                                     ),
                                   ),
                                 ],
@@ -387,7 +443,8 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF8F9FA),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade200),
+                                    border:
+                                        Border.all(color: Colors.grey.shade200),
                                   ),
                                   child: Row(
                                     children: [
@@ -396,35 +453,55 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                         height: 36,
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: Colors.grey.shade200),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                              color: Colors.grey.shade200),
                                         ),
                                         padding: const EdgeInsets.all(2),
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
                                           child: cloth.imageBytes != null
-                                              ? Image.memory(cloth.imageBytes!, fit: BoxFit.contain)
+                                              ? Image.memory(cloth.imageBytes!,
+                                                  fit: BoxFit.contain)
                                               : cloth.assetPath != null
-                                                  ? Image.asset(cloth.assetPath!, fit: BoxFit.contain)
+                                                  ? Image.asset(
+                                                      cloth.assetPath!,
+                                                      fit: BoxFit.contain)
                                                   : Container(
-                                                      color: cloth.fallbackColor.withValues(alpha: 0.15),
-                                                      child: Icon(cloth.fallbackIcon, size: 14, color: cloth.fallbackColor),
+                                                      color: cloth.fallbackColor
+                                                          .withValues(
+                                                              alpha: 0.15),
+                                                      child: Icon(
+                                                          cloth.fallbackIcon,
+                                                          size: 14,
+                                                          color: cloth
+                                                              .fallbackColor),
                                                     ),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             cloth.brand,
-                                            style: const TextStyle(fontSize: 8, color: Colors.grey, fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                                fontSize: 8,
+                                                color: Colors.grey,
+                                                fontWeight: FontWeight.bold),
                                           ),
                                           SizedBox(
                                             width: 80,
                                             child: Text(
                                               cloth.name,
-                                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: const Color(0xFF333333)),
+                                              style: const TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color:
+                                                      const Color(0xFF333333)),
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),

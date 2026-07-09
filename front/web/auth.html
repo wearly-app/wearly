@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Authentication Complete</title>
+</head>
+<body>
+    <script>
+        // Kakao Web Login Redirect Handler
+        // Send the redirect URL containing authorization code back to the parent window
+        if (window.opener) {
+            window.opener.postMessage({
+                "flutter-web-auth": window.location.href
+            }, window.location.origin);
+            window.close();
+        } else {
+            // Redirect to homepage, preserving all query parameters (like ?code=...)
+            window.location.href = window.location.origin + '/' + window.location.search;
+        }
+    </script>
+</body>
+</html>

@@ -13,6 +13,7 @@ import com.wearly.domain.user.exception.UserErrorCode;
 import com.wearly.domain.user.exception.UserException;
 import com.wearly.domain.user.repository.UserRepository;
 import com.wearly.global.common.entity.Style;
+import com.wearly.infra.s3.S3ImageStorage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class ClothesService {
 
     private final ClothesRepository clothesRepository;
     private final UserRepository userRepository;
+    private final S3ImageStorage s3ImageStorage;
 
     @Transactional
     public ClothesResponse createClothes(Long userId, ClothesCreateRequest request) {
@@ -46,8 +48,9 @@ public class ClothesService {
         );
 
         Clothes savedClothes = clothesRepository.save(clothes);
+        String imageUrl = s3ImageStorage.getUrl(savedClothes.getImageUrl());
 
-        return ClothesResponse.from(clothes);
+        return ClothesResponse.from(clothes, imageUrl);
     }
 
     public List<ClothesResponse> getClothesList(Long userId, Category category, Style style) {
@@ -56,14 +59,14 @@ public class ClothesService {
         return clothesList.stream()
                 .filter(clothes -> category == null || clothes.getCategory() == category)
                 .filter(clothes -> style == null || clothes.getStyle() == style)
-                .map(ClothesResponse::from)
+                .map(c -> ClothesResponse.from(c, s3ImageStorage.getUrl(c.getImageUrl())))
                 .toList();
     }
 
     public ClothesResponse getClothes(Long userId, Long clothesId) {
         Clothes clothes = getClothesByIdAndUserId(clothesId, userId);
-
-        return ClothesResponse.from(clothes);
+        String imageUrl = s3ImageStorage.getUrl(clothes.getImageUrl());
+        return ClothesResponse.from(clothes, imageUrl);
     }
 
     @Transactional
@@ -83,7 +86,9 @@ public class ClothesService {
                 request.getCloValue()
         );
 
-        return ClothesResponse.from(clothes);
+        String imageUrl = s3ImageStorage.getUrl(clothes.getImageUrl());
+
+        return ClothesResponse.from(clothes, imageUrl);
     }
 
     @Transactional

@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
-import 'package:wearly/config/app_config.dart';
+import 'package:front/config/app_config.dart';
 
 // Helper to generate a PKCE-compliant secure random code verifier
 String _generateCodeVerifier() {

@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:wearly/services/api_service.dart';
+import 'package:front/services/api_service.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -77,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.pop(context);
 
     // Redirect to login screen
-    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    context.go('/login');
   }
 
   @override

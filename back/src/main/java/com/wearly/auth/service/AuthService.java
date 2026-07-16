@@ -22,7 +22,18 @@ public class AuthService {
 
     @Transactional
     public TokenResponse loginWithKakao(KakaoLoginRequest request) {
-        KakaoUserResponse kakaoUser = kakaoApiClient.getUserInfo(request.getAccessToken());
+        String kakaoAccessToken;
+        if (request.getAuthCode() != null && !request.getAuthCode().isEmpty()) {
+            kakaoAccessToken = kakaoApiClient.getAccessTokenFromAuthCode(
+                    request.getAuthCode(),
+                    request.getRedirectUri(),
+                    request.getCodeVerifier()
+            );
+        } else {
+            kakaoAccessToken = request.getAccessToken();
+        }
+
+        KakaoUserResponse kakaoUser = kakaoApiClient.getUserInfo(kakaoAccessToken);
 
         User user = userRepository.findByKakaoId(kakaoUser.getKakaoId())
                 .orElseGet(() -> createUser(kakaoUser));

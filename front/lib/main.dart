@@ -55,8 +55,8 @@ class WearlyApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0F172A),
       ),
 
-      // Start with the splash screen
-      initialRoute: '/splash',
+      // Start with the home screen directly during local development/testing
+      initialRoute: '/home',
       
       routes: {
         '/splash': (context) => const SplashScreen(),

@@ -37,6 +37,9 @@ public class KakaoApiClient {
                 .build();
     }
 
+    @org.springframework.beans.factory.annotation.Value("${kakao.rest-api-key:4495f583b16b0ff643477b99638d9e3a}")
+    private String restApiKey;
+
     public KakaoUserResponse getUserInfo(String kakaoAccessToken) {
         return webClient.get()
                 .uri(KAKAO_USER_INFO_URI)
@@ -52,5 +55,38 @@ public class KakaoApiClient {
                 )
                 .bodyToMono(KakaoUserResponse.class)
                 .block();
+    }
+
+    public String getAccessTokenFromAuthCode(String authCode, String redirectUri, String codeVerifier) {
+        org.springframework.util.MultiValueMap<String, String> formData = new org.springframework.util.LinkedMultiValueMap<>();
+        formData.add("grant_type", "authorization_code");
+        formData.add("client_id", restApiKey);
+        formData.add("redirect_uri", redirectUri);
+        formData.add("code", authCode);
+        if (codeVerifier != null && !codeVerifier.isEmpty()) {
+            formData.add("code_verifier", codeVerifier);
+        }
+
+        com.wearly.auth.dto.response.KakaoTokenResponse response = webClient.post()
+                .uri("https://kauth.kakao.com/oauth/token")
+                .header(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded;charset=utf-8")
+                .body(org.springframework.web.reactive.function.BodyInserters.fromFormData(formData))
+                .retrieve()
+                .onStatus(
+                        HttpStatusCode::is4xxClientError,
+                        clientResponse -> Mono.error(new AuthException(String.valueOf(AuthErrorCode.INVALID_KAKAO_ACCESS_TOKEN)))
+                )
+                .onStatus(
+                        HttpStatusCode::is5xxServerError,
+                        clientResponse -> Mono.error(new AuthException(String.valueOf(AuthErrorCode.KAKAO_SERVER_ERROR)))
+                )
+                .bodyToMono(com.wearly.auth.dto.response.KakaoTokenResponse.class)
+                .block();
+
+        if (response == null || response.getAccessToken() == null) {
+            throw new RuntimeException("Failed to exchange Kakao authorization code for access token.");
+        }
+
+        return response.getAccessToken();
     }
 }

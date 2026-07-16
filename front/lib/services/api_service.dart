@@ -141,19 +141,16 @@ class ApiService {
         final redirectUri = '${Uri.base.origin}/auth.html';
         print('Web exchanging token with redirectUri: $redirectUri');
 
-        // Exchange for Kakao Access Token
-        final tokenResponse = await AuthApi.instance.issueAccessToken(
-          authCode: authCode,
-          redirectUri: redirectUri,
-          codeVerifier: codeVerifier,
-        );
-        final kakaoAccessToken = tokenResponse.accessToken;
-
-        // Call backend with Kakao Access Token
+        // Call backend directly with the Authorization Code, Redirect URI, and Code Verifier
+        // (exchanging the code for a token is handled on the backend to avoid CORS restrictions on Web)
         final response = await http.post(
           Uri.parse('${AppConfig.apiBaseUrl}/api/auth/kakao'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'accessToken': kakaoAccessToken}),
+          body: jsonEncode({
+            'authCode': authCode,
+            'redirectUri': redirectUri,
+            'codeVerifier': codeVerifier,
+          }),
         );
 
         if (response.statusCode == 200) {

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:front/features/user/closet/models/clothing_item.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
 import 'package:front/features/user/closet/pages/wardrobe_page.dart';
+import 'package:front/services/api_service.dart';
 
 // ──────────────────────────────────────────────
 // Add Item Source Sheet (Acloset style)
@@ -102,12 +104,59 @@ class AddItemSourceSheet extends StatelessWidget {
                 context,
                 Icons.store_outlined,
                 '온라인 스토어 (URL/화면 캡처)',
-                onTap: () {},
+                onTap: () => _showUrlInputDialog(context),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _showUrlInputDialog(BuildContext context) async {
+    final TextEditingController urlCtrl = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('온라인 스토어 URL 입력', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          content: TextField(
+            controller: urlCtrl,
+            decoration: InputDecoration(
+              hintText: 'https://macho707.com/...',
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              filled: true,
+              fillColor: const Color(0xFFF4F4F4),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('취소', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // Close dialog
+                if (urlCtrl.text.isNotEmpty) {
+                  Navigator.pop(context); // Close AddItemSourceSheet
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (_) => AddItemProcessSheet(
+                      initialUrl: urlCtrl.text,
+                      onAdded: onAdded,
+                    ),
+                  );
+                }
+              },
+              child: const Text('가져오기', style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -162,10 +211,11 @@ class AddItemSourceSheet extends StatelessWidget {
 // Add Item Process Sheet (rembg / Google Lens sim)
 // ──────────────────────────────────────────────
 class AddItemProcessSheet extends StatefulWidget {
-  final XFile imageFile;
+  final XFile? imageFile;
+  final String? initialUrl;
   final VoidCallback onAdded;
   const AddItemProcessSheet(
-      {super.key, required this.imageFile, required this.onAdded});
+      {super.key, this.imageFile, this.initialUrl, required this.onAdded});
 
   @override
   State<AddItemProcessSheet> createState() => _AddItemProcessSheetState();
@@ -249,12 +299,17 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
   }
 
   Future<void> _initImagesAndProcess() async {
-    final bytes = await widget.imageFile.readAsBytes();
-    if (mounted) {
-      setState(() {
-        _inputBytes = bytes;
-      });
-      _processImage(bytes);
+    if (widget.initialUrl != null) {
+      // If started with URL, immediately run URL crawling mock
+      _crawlClothingInfo(initial: true);
+    } else if (widget.imageFile != null) {
+      final bytes = await widget.imageFile!.readAsBytes();
+      if (mounted) {
+        setState(() {
+          _inputBytes = bytes;
+        });
+        _processImage(bytes);
+      }
     }
   }
 
@@ -289,206 +344,235 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
   }
 
   Future<void> _processImage(Uint8List inputBytes) async {
-    final currentSetIndex = _currentIndex % 4;
-    _setIndex = currentSetIndex;
-    _currentIndex++; // Increment for next upload
+    if (!mounted) return;
+    setState(() {
+      _progress = 0.05;
+      _loadingText = 'AI가 의류 배경을 분리하고 스마트 분석을 준비 중입니다...';
+    });
 
-    // Progress updates smoothly over 2 seconds
-    final int totalSteps = 20;
-    final int stepDurationMs = 100;
-
-    for (int step = 1; step <= totalSteps; step++) {
-      await Future.delayed(Duration(milliseconds: stepDurationMs));
-      if (!mounted) return;
-
-      final currentProgress = step / totalSteps;
-
-      String text = 'AI가 의류 배경을 분리하고 스마트 분석을 준비 중입니다...';
-
+    // Start a timer to animate progress up to 90% in-flight
+    Timer? progressTimer;
+    progressTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
-        _progress = currentProgress;
-        _loadingText = text;
-      });
-    }
-
-    if (mounted) {
-      Uint8List? processedImageBytes;
-      if (currentSetIndex == 0) {
-        try {
-          final ByteData inputData = await rootBundle.load('assets/uniqlo_straight.png');
-          final ByteData processedData = await rootBundle.load('assets/uniqlo_straight.png');
-          setState(() {
-            _inputBytes = inputData.buffer.asUint8List();
-          });
-          processedImageBytes = processedData.buffer.asUint8List();
-        } catch (e) {
-          debugPrint("Failed to load uniqlo straight denim assets: $e");
-          processedImageBytes = inputBytes;
+        if (_progress < 0.90) {
+          _progress += 0.02;
+        } else {
+          timer.cancel();
         }
-      } else if (currentSetIndex == 3) {
-        try {
-          final ByteData inputData = await rootBundle.load('assets/divein_crop.jpeg');
-          final ByteData processedData = await rootBundle.load('assets/divein_crop1.png');
+      });
+    });
+
+    try {
+      final apiService = ApiService();
+      final result = await apiService.analyzeClothingImage(widget.imageFile!);
+      progressTimer.cancel();
+
+      if (result != null && mounted) {
+        setState(() {
+          _progress = 1.0;
+        });
+
+        // Parse Base64 Image
+        final imageUrl = result['imageUrl'] as String;
+        Uint8List? processedImageBytes;
+        if (imageUrl.startsWith('data:image/png;base64,')) {
+          final base64Str = imageUrl.substring('data:image/png;base64,'.length);
+          processedImageBytes = base64Decode(base64Str);
+        }
+
+        // Map Category
+        final backendCategory = result['category'] as String?;
+        String mappedCategory = '기타';
+        if (backendCategory == 'TOP') mappedCategory = '상의';
+        else if (backendCategory == 'BOTTOM') mappedCategory = '하의';
+        else if (backendCategory == 'OUTER') mappedCategory = '아우터';
+        else if (backendCategory == 'ONEPIECE') mappedCategory = '원피스';
+        else if (backendCategory == 'SHOES') mappedCategory = '신발';
+        else if (backendCategory == 'BAG') mappedCategory = '가방';
+        else if (backendCategory == 'ACCESSORY') mappedCategory = '기타';
+
+        // Map Style
+        final backendStyle = result['style'] as String?;
+        String mappedStyle = '캐주얼';
+        if (backendStyle == 'CASUAL') mappedStyle = '캐주얼';
+        else if (backendStyle == 'MINIMAL') mappedStyle = '미니멀';
+        else if (backendStyle == 'STREET') mappedStyle = '스트릿';
+        else if (backendStyle == 'SPORTY') mappedStyle = '스포티';
+        else if (backendStyle == 'FORMAL') mappedStyle = '격식';
+        else if (backendStyle == 'VINTAGE') mappedStyle = '데이트'; // maps vintage to date
+
+        // Convert HSV to Hex Color
+        final h = result['colorH'] as int? ?? 0;
+        final s = result['colorS'] as int? ?? 0;
+        final v = result['colorV'] as int? ?? 100;
+        final color = HSVColor.fromAHSV(1.0, h.toDouble(), s.toDouble() / 100.0, v.toDouble() / 100.0).toColor();
+        final hexColor = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+
+        final brand = result['brand'] as String? ?? '';
+        final material = result['material'] as String? ?? '';
+        final thickness = result['thickness'] as int? ?? 2;
+        final cloValue = result['cloValue'] as double? ?? 0.65;
+
+        // Map thickness to CLO Slider value (1.0 to 5.0 discrete)
+        double mappedSliderValue = 3.0; // 봄/가을용
+        if (thickness == 1) {
+          mappedSliderValue = 1.0;
+        } else if (thickness == 3) {
+          mappedSliderValue = 5.0;
+        }
+
+        setState(() {
+          _processedBytes = processedImageBytes ?? inputBytes;
+          _isRembgActive = true;
+          _isLocalServer = true;
+          _serverStatus = 'AI 분석 완료 (배경 제거 & 속성 추출 성공)';
+          
+          _brandCtrl.text = brand;
+          _nameCtrl.text = brand.isNotEmpty ? '$brand $mappedCategory' : '$mappedCategory';
+          _extractedColorHex = hexColor;
+          _selectedCategory = mappedCategory;
+          _extractedMaterial = material;
+          _materialCtrl.text = material;
+          _cloSliderValue = mappedSliderValue;
+          _isAiAnalyzed = true;
+          
+          // Map Seasons
+          _selectedSeasons.clear();
+          if (thickness == 1) {
+            _selectedSeasons.add('여름');
+          } else if (thickness == 3) {
+            _selectedSeasons.add('겨울');
+          } else {
+            _selectedSeasons.addAll(const ['봄', '가을']);
+          }
+
+          // Map Situation
+          _selectedSituations.clear();
+          _selectedSituations.add(mappedStyle);
+        });
+
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
           setState(() {
-            _inputBytes = inputData.buffer.asUint8List();
+            _step = 2;
           });
-          processedImageBytes = processedData.buffer.asUint8List();
-        } catch (e) {
-          debugPrint("Failed to load divein crop assets: $e");
-          processedImageBytes = inputBytes;
         }
       } else {
-        processedImageBytes = inputBytes;
-      }
-
-      setState(() {
-        _processedBytes = processedImageBytes;
-        _isRembgActive = true;
-        _isLocalServer = true;
-        _serverStatus = '배경 분리 완료 (스마트 분석 대기)';
-
-        // Initial state before AI tag parsing is empty/blank
-        _nameCtrl.text = '';
-        _brandCtrl.text = '';
-        _extractedColorHex = '#FFFFFF';
-        _selectedCategory = (currentSetIndex == 0 || currentSetIndex == 1) ? '하의' : (currentSetIndex == 2 ? '아우터' : '상의');
-        _selectedSeasons.clear();
-        _selectedSituations.clear();
-        _selectedSituations.add('캐주얼');
-        _styleLevel = 2;
-        _extractedMaterial = '';
-        _materialCtrl.text = '';
-        _cloSliderValue = (currentSetIndex == 0 || currentSetIndex == 1 || currentSetIndex == 2) ? 3.0 : 1.0;
-        _isAiAnalyzed = false;
-      });
-
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (mounted) {
         setState(() {
+          _progress = 1.0;
+          _processedBytes = inputBytes;
+          _serverStatus = 'AI 분석 실패 (기본 설정)';
           _step = 2;
         });
       }
+    } catch (e) {
+      print('Error during image analysis: $e');
+      progressTimer.cancel();
+      setState(() {
+        _progress = 1.0;
+        _processedBytes = inputBytes;
+        _serverStatus = 'AI 분석 중 에러 발생';
+        _step = 2;
+      });
     }
   }
 
   Future<void> _simulateAiAnalysis() async {
-    setState(() {
-      _isAnalyzingImage = true;
-      _serverStatus = '🔍 Google Lens 이미지 분석 및 유사 상품 매칭 중...';
-    });
-
-    await Future.delayed(const Duration(milliseconds: 1000));
-    if (!mounted) return;
-    setState(() {
-      _serverStatus = '🌐 매칭된 쇼핑몰 상세 페이지 크롤링 중 (uniqlo.com)...';
-    });
-
-    await Future.delayed(const Duration(milliseconds: 1000));
-    if (!mounted) return;
-    setState(() {
-      _serverStatus = '📄 제품 정보 테이블에서 소재 정보 추출 중...';
-    });
-
-    await Future.delayed(const Duration(milliseconds: 1000));
-    if (!mounted) return;
-
-    setState(() {
-      _isAiAnalyzed = true;
-      _isAnalyzingImage = false;
-      _isRembgActive = true;
-      _isLocalServer = true;
-      _serverStatus = 'AI 스마트 분석 완료 (CLO 단열 파싱 성공)';
-
-      if (_setIndex == 0) {
-        _nameCtrl.text = '스트레이트 데님 (연청)';
-        _brandCtrl.text = '유니클로';
-        _extractedColorHex = '#ADD8E6';
-        _selectedCategory = '하의';
-        _selectedSeasons.clear();
-        _selectedSeasons.addAll(const ['봄', '가을']);
-        _selectedSituations.clear();
-        _selectedSituations.addAll(const ['미니멀', '캐주얼']);
-        _styleLevel = 2;
-        _extractedMaterial = '데님 100%';
-        _cloSliderValue = 3.0; // 기본 3단계 (봄/가을용)
-      } else if (_setIndex == 1) {
-        _nameCtrl.text = '빈티지 워싱 와이드 데님';
-        _brandCtrl.text = ''; // No Brand -> Empty string
-        _extractedColorHex = '#808080';
-        _selectedCategory = '하의';
-        _selectedSeasons.clear();
-        _selectedSeasons.addAll(const ['봄', '가을']);
-        _selectedSituations.clear();
-        _selectedSituations.addAll(const ['캐주얼', '스트릿']);
-        _styleLevel = 2;
-        _extractedMaterial = ''; // 가져오기 힘든 정보로 비워둠
-        _cloSliderValue = 3.0; // 3rd stage
-      } else if (_setIndex == 2) {
-        _nameCtrl.text = '나일론 바람막이 자켓';
-        _brandCtrl.text = ''; // No Brand -> Empty string
-        _extractedColorHex = '#000000';
-        _selectedCategory = '아우터';
-        _selectedSeasons.clear();
-        _selectedSeasons.addAll(const ['봄', '가을']);
-        _selectedSituations.clear();
-        _selectedSituations.addAll(const ['스포티', '스트릿']);
-        _styleLevel = 2;
-        _extractedMaterial = ''; // 가져오기 힘든 정보로 비워둠
-        _cloSliderValue = 3.0; // 3rd stage
-      } else {
-        _nameCtrl.text = 'UNIFORM CROP T-SHIRTS';
-        _brandCtrl.text = '다이브인';
-        _extractedColorHex = '#A9A9A9';
-        _selectedCategory = '상의';
-        _selectedSeasons.clear();
-        _selectedSeasons.add('여름');
-        _selectedSituations.clear();
-        _selectedSituations.addAll(const ['캐주얼', '미니멀']);
-        _styleLevel = 2;
-        _extractedMaterial = '코튼 95%, 폴리 5%';
-        _cloSliderValue = 1.0; // 1st stage
-      }
-
-      _aiExtractedColorHex = _extractedColorHex;
-
-      // 소재 필드에 추출된 정보 입력 (정보가 없으면 비어 있게 됨)
-      _materialCtrl.text = _extractedMaterial;
-    });
-
-    final displayBrand = _brandCtrl.text.isEmpty ? 'No Brand' : _brandCtrl.text;
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '✨ AI 분석 완료! 브랜드: $displayBrand | 소재: $_extractedMaterial | 단열 지수: ${_getCloStageText(_cloSliderValue)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.purple.shade600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+    if (_inputBytes != null) {
+      await _processImage(_inputBytes!);
     }
   }
 
-  Future<void> _crawlClothingInfo() async {
-    setState(() {
-      _isCrawling = true;
-    });
-    await _simulateAiAnalysis();
+  Future<void> _crawlClothingInfo({bool initial = false}) async {
+    if (!mounted) return;
+    
+    if (initial) {
+      setState(() {
+        _step = 1;
+        _progress = 0.05;
+        _loadingText = '스토어에서 상품 정보를 가져오는 중...';
+      });
+    } else {
+      setState(() {
+        _isCrawling = true;
+      });
+    }
+
+    // Start a timer to animate progress
+    Timer? progressTimer;
+    if (initial) {
+      progressTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          if (_progress < 0.90) {
+            _progress += 0.03;
+          } else {
+            timer.cancel();
+          }
+        });
+      });
+    }
+
+    final apiService = ApiService();
+    // Use the URL provided or fallback to a dummy if none
+    final targetUrl = widget.initialUrl ?? 'https://macho707.com';
+    final result = await apiService.crawlClothingUrl(targetUrl);
+    
+    progressTimer?.cancel();
+
     if (mounted) {
       setState(() {
+        _progress = 1.0;
         _isCrawling = false;
+        
+        if (result != null) {
+          _isRembgActive = true;
+          _isLocalServer = true;
+          _serverStatus = '웹 크롤링 정보 추출 완료';
+          _step = 2;
+          
+          _brandCtrl.text = result['brand'] ?? '브랜드 없음';
+          _nameCtrl.text = result['name'] ?? '새 상품';
+          _materialCtrl.text = result['material'] ?? '알 수 없음';
+          
+          // Basic fallbacks for a crawled item
+          _extractedColorHex = '#4A2F22';
+          _selectedCategory = '상의';
+          _cloSliderValue = 3.0;
+          _isAiAnalyzed = true;
+          
+          _selectedSeasons.clear();
+          _selectedSeasons.addAll(const ['봄', '가을']);
+          _selectedSituations.clear();
+          _selectedSituations.addAll(['캐주얼']);
+          
+          // Assuming the result might have an image URL, normally we'd fetch it, but here we just use asset fallback if it's mock
+          _inputBytes = null; 
+        } else {
+          _serverStatus = '크롤링 실패';
+          _step = 2;
+        }
       });
+      
+      // Load asset image bytes if we don't have a real image yet
+      if (_inputBytes == null) {
+        try {
+          final ByteData data = await rootBundle.load('assets/macho_henley.png');
+          setState(() {
+            _inputBytes = data.buffer.asUint8List();
+            _processedBytes = _inputBytes;
+          });
+        } catch (_) {
+          // Fallback if asset is missing
+        }
+      }
     }
   }
 
@@ -496,55 +580,103 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
     await _simulateAiAnalysis();
   }
 
-  void _saveItem() {
+  Future<void> _saveItem() async {
+    // 1. Prepare data for backend API
+    String backendCategory = 'TOP';
+    if (_selectedCategory == '상의') backendCategory = 'TOP';
+    else if (_selectedCategory == '하의') backendCategory = 'BOTTOM';
+    else if (_selectedCategory == '아우터') backendCategory = 'OUTER';
+    else if (_selectedCategory == '원피스') backendCategory = 'ONEPIECE';
+    else if (_selectedCategory == '신발') backendCategory = 'SHOES';
+    else if (_selectedCategory == '가방') backendCategory = 'BAG';
+    else if (_selectedCategory == '기타') backendCategory = 'ACCESSORY';
+
+    String backendStyle = 'CASUAL';
+    if (_selectedSituations.isNotEmpty) {
+      final style = _selectedSituations.first;
+      if (style == '미니멀') backendStyle = 'MINIMAL';
+      else if (style == '스트릿') backendStyle = 'STREET';
+      else if (style == '스포티') backendStyle = 'SPORTY';
+      else if (style == '격식') backendStyle = 'FORMAL';
+      else if (style == '데이트') backendStyle = 'VINTAGE'; 
+    }
+
+    final color = _parseHexColor(_extractedColorHex);
+    final hsv = HSVColor.fromColor(color);
+
+    String base64Image = '';
+    if (_processedBytes != null) {
+      base64Image = base64Encode(_processedBytes!);
+    } else if (_inputBytes != null) {
+      base64Image = base64Encode(_inputBytes!);
+    }
+
+    final itemData = {
+      'category': backendCategory,
+      'style': backendStyle,
+      'imageUrl': 'data:image/png;base64,$base64Image',
+      'colorH': hsv.hue.toInt(),
+      'colorS': (hsv.saturation * 100).toInt(),
+      'colorV': (hsv.value * 100).toInt(),
+      'brand': _brandCtrl.text.isEmpty ? 'No Brand' : _brandCtrl.text,
+      'material': _materialCtrl.text.isEmpty ? '코튼 100%' : _materialCtrl.text,
+      'thickness': _cloSliderValue.toInt() <= 2 ? 1 : (_cloSliderValue.toInt() == 3 ? 2 : 3),
+      'cloValue': _getCloValueFromSlider(_cloSliderValue),
+    };
+
+    // 2. Call API to save to DB
+    final apiService = ApiService();
+    await apiService.createClothingItem(itemData);
+
+    // 3. Save locally to UI State (ClosetService)
     final item = ClothingItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameCtrl.text.isEmpty ? '새 아이템' : _nameCtrl.text,
       category: _selectedCategory,
       brand: _brandCtrl.text.isEmpty ? 'No Brand' : _brandCtrl.text,
       imageBytes: _processedBytes ?? _inputBytes,
-      fallbackColor: _parseHexColor(_extractedColorHex),
+      fallbackColor: color,
       fallbackIcon: Icons.dry_cleaning,
       seasons: List<String>.from(_selectedSeasons),
       situation: List<String>.from(_selectedSituations),
-      thickness: _cloSliderValue.toInt() <= 2 ? 1 : (_cloSliderValue.toInt() == 3 ? 2 : 3), // mapped thickness
+      thickness: _cloSliderValue.toInt() <= 2 ? 1 : (_cloSliderValue.toInt() == 3 ? 2 : 3),
       colorHex: _extractedColorHex,
       styleLevel: _styleLevel,
-      lastWornDate: DateTime.now().subtract(const Duration(days: 30)), // Default: 30 days ago to trigger "rescue engine"
+      lastWornDate: DateTime.now().subtract(const Duration(days: 30)),
       wearCount: 0,
       material: _materialCtrl.text.isEmpty ? '코튼 100%' : _materialCtrl.text,
-      clo: _getCloValueFromSlider(_cloSliderValue), // mapped CLO value
+      clo: _getCloValueFromSlider(_cloSliderValue),
     );
 
-    // Save to ClosetService
     ClosetService.instance.addClothingItem(item);
     widget.onAdded();
 
-    // Show green SnackBar feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-            SizedBox(width: 10),
-            Text(
-              '✨ 스마트 옷장에 성공적으로 추가되었습니다! 내 옷장으로 이동합니다.',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
-            ),
-          ],
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text(
+                '✨ 스마트 옷장에 성공적으로 추가되었습니다! 내 옷장으로 이동합니다.',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
         ),
-        backgroundColor: Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
 
-    Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => WardrobePage(onRefresh: widget.onAdded)),
-    );
+      Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => WardrobePage(onRefresh: widget.onAdded)),
+      );
+    }
   }
 
   @override

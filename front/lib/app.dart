@@ -1,3 +1,10 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:front/features/user/closet/pages/closet_main_page.dart';
+import 'package:front/features/user/closet/pages/codi_maker_page.dart';
+import 'package:front/features/user/closet/pages/saved_outfits_page.dart';
+import 'package:front/features/user/closet/pages/wardrobe_page.dart';
+import 'package:front/features/user/closet/pages/ai_recommendation_page.dart';
 import 'package:front/screens/home_screen.dart';
 import 'package:front/screens/login_screen.dart';
 import 'package:front/screens/splash_screen.dart';

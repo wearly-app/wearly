@@ -6,6 +6,8 @@ import com.wearly.domain.clothes.dto.response.ClothesResponse;
 import com.wearly.domain.clothes.dto.response.ClothesAnalyzeResponse;
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.domain.clothes.service.ClothesService;
+import com.wearly.domain.clothes.service.RembgService;
+import com.wearly.domain.clothes.service.GeminiApiClient;
 import com.wearly.global.common.entity.Style;
 import com.wearly.global.security.WearlyUserPrincipal;
 import jakarta.validation.Valid;
@@ -33,13 +35,44 @@ import java.util.List;
 public class ClothesController {
 
     private final ClothesService clothesService;
+    private final RembgService rembgService;
+    private final GeminiApiClient geminiApiClient;
 
     @PostMapping("/analyze")
     public ResponseEntity<ClothesAnalyzeResponse> analyzeClothesImage(
             @RequestPart MultipartFile image
     ) {
-        // TODO: S3 업로드 + AI 분석 연동 후 구현
-        return ResponseEntity.ok(null);
+        try {
+            byte[] originalBytes = image.getBytes();
+
+            // 1. Remove background (누끼 따기)
+            byte[] processedBytes = rembgService.removeBackground(originalBytes);
+
+            // Convert to Base64 to send to Gemini & to return as Data URI
+            String base64Image = java.util.Base64.getEncoder().encodeToString(processedBytes);
+            String imageUrl = "data:image/png;base64," + base64Image;
+
+            // 2. Call Gemini API to analyze clothes info
+            ClothesAnalyzeResponse response = geminiApiClient.analyzeClothingImage(processedBytes, base64Image);
+
+            // 3. Update response with the transparent imageUrl
+            ClothesAnalyzeResponse finalResponse = ClothesAnalyzeResponse.builder()
+                    .imageUrl(imageUrl)
+                    .category(response.getCategory())
+                    .style(response.getStyle())
+                    .colorH(response.getColorH())
+                    .colorS(response.getColorS())
+                    .colorV(response.getColorV())
+                    .brand(response.getBrand())
+                    .material(response.getMaterial())
+                    .thickness(response.getThickness())
+                    .cloValue(response.getCloValue())
+                    .build();
+
+            return ResponseEntity.ok(finalResponse);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to analyze clothes image", e);
+        }
     }
 
     @PostMapping

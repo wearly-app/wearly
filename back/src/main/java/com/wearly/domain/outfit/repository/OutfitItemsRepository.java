@@ -11,6 +11,7 @@ import java.util.List;
 
 public interface OutfitItemsRepository extends JpaRepository<OutfitItems, Long> {
 
+    @EntityGraph(attributePaths = "clothes")
     List<OutfitItems> findByOutfits_Id(Long outfitId);
 
     @Modifying(flushAutomatically = true)

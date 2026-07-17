@@ -4,6 +4,8 @@ import com.wearly.domain.outfit.dto.request.OutfitCreateRequest;
 import com.wearly.domain.outfit.dto.request.OutfitUpdateRequest;
 import com.wearly.domain.outfit.dto.response.OutfitFavoriteResponse;
 import com.wearly.domain.outfit.dto.response.OutfitResponse;
+import com.wearly.domain.outfit.dto.response.OutfitWearResponse;
+import com.wearly.domain.outfit.service.OutfitHistoryService;
 import com.wearly.domain.outfit.service.OutfitService;
 import com.wearly.global.common.response.SliceResponse;
 import com.wearly.global.config.OpenApiConfig;
@@ -38,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OutfitController {
 
     private final OutfitService outfitService;
+    private final OutfitHistoryService outfitHistoryService;
 
     @Operation(summary = "코디 생성", description = "현재 사용자의 옷을 조합해 새로운 코디를 저장한다.")
     @PostMapping
@@ -133,5 +136,19 @@ public class OutfitController {
                 );
 
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "코디 착용 기록", description = "현재 사용자가 소유한 코디를 오늘 입은 것으로 기록한다.")
+    @PostMapping("/{id}/wear")
+    public ResponseEntity<OutfitWearResponse> wearOutfit(
+            @AuthenticationPrincipal WearlyUserPrincipal principal,
+            @PathVariable Long id
+    ) {
+        OutfitWearResponse response = outfitHistoryService.wearOutfit(
+                principal.getUserId(),
+                id
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

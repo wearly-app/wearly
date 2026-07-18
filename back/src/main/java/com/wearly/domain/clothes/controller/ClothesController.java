@@ -36,8 +36,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/clothes")
 @RequiredArgsConstructor
@@ -80,15 +78,20 @@ public class ClothesController {
 
     @Operation(summary = "옷 목록 조회", description = "현재 사용자의 옷을 카테고리와 스타일 조건으로 조회한다.")
     @GetMapping
-    public ResponseEntity<List<ClothesResponse>> getClothesList(
+    public ResponseEntity<SliceResponse<ClothesResponse>> getClothesList(
             @AuthenticationPrincipal WearlyUserPrincipal principal,
             @RequestParam(required = false) Category category,
-            @RequestParam(required = false) Style style
+            @RequestParam(required = false) Style style,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
     ) {
-        List<ClothesResponse> response = clothesService.getClothesList(
+        SliceResponse<ClothesResponse> response = clothesService.getClothesList(
                 principal.getUserId(),
                 category,
-                style);
+                style,
+                page,
+                size
+        );
 
         return ResponseEntity.ok(response);
     }

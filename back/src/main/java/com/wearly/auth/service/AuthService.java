@@ -1,6 +1,6 @@
 package com.wearly.auth.service;
 
-import com.wearly.auth.client.KakaoApiClient;
+import com.wearly.infra.kakao.KakaoApiClient;
 import com.wearly.auth.dto.request.KakaoLoginRequest;
 import com.wearly.auth.dto.response.KakaoUserResponse;
 import com.wearly.auth.dto.response.TokenResponse;

@@ -23,3 +23,9 @@ springdoc:
     path: /swagger-ui.html
     tags-sorter: alpha
     operations-sorter: method
+
+weather:
+  api:
+    key: ${WEATHER_API_KEY}
+    base-url: https://api.openweathermap.org
+

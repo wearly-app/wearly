@@ -1,4 +1,4 @@
-package com.wearly.auth.client;
+package com.wearly.infra.kakao;
 
 import com.wearly.auth.dto.response.KakaoUserResponse;
 import com.wearly.auth.exception.AuthErrorCode;

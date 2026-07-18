@@ -39,5 +39,32 @@ public class Outfits extends BaseEntity {
 
     private String thumbnailUrl;
 
-    private Boolean isFavorite;
+    private boolean isFavorite;
+
+    public static Outfits create(
+            User user,
+            String name,
+            Style style
+    ) {
+        Outfits outfits = new Outfits();
+        outfits.user = user;
+        outfits.name = name;
+        outfits.style = style;
+        outfits.isFavorite = false;
+        return outfits;
+    }
+
+    public void update(String name, Style style) {
+        if (name != null) {
+            this.name = name;
+        }
+
+        if (style != null) {
+            this.style = style;
+        }
+    }
+
+    public void toggleFavorite() {
+        this.isFavorite = !this.isFavorite;
+    }
 }

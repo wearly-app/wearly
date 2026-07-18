@@ -13,7 +13,13 @@ import com.wearly.domain.user.exception.UserErrorCode;
 import com.wearly.domain.user.exception.UserException;
 import com.wearly.domain.user.repository.UserRepository;
 import com.wearly.global.common.entity.Style;
+import com.wearly.global.common.response.SliceResponse;
+import com.wearly.infra.s3.S3ImageStorage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +32,7 @@ public class ClothesService {
 
     private final ClothesRepository clothesRepository;
     private final UserRepository userRepository;
+    private final S3ImageStorage s3ImageStorage;
 
     @Transactional
     public ClothesResponse createClothes(Long userId, ClothesCreateRequest request) {
@@ -46,24 +53,42 @@ public class ClothesService {
         );
 
         Clothes savedClothes = clothesRepository.save(clothes);
+        String imageUrl = s3ImageStorage.getUrl(savedClothes.getImageUrl());
 
-        return ClothesResponse.from(clothes);
+        return ClothesResponse.from(clothes, imageUrl);
     }
 
-    public List<ClothesResponse> getClothesList(Long userId, Category category, Style style) {
-        List<Clothes> clothesList = clothesRepository.findByUser_Id(userId);
+    public SliceResponse<ClothesResponse> getClothesList(
+            Long userId,
+            Category category,
+            Style style,
+            int page,
+            int size
+    ) {
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
 
-        return clothesList.stream()
-                .filter(clothes -> category == null || clothes.getCategory() == category)
-                .filter(clothes -> style == null || clothes.getStyle() == style)
-                .map(ClothesResponse::from)
+        Slice<Clothes> clothesSlice = getClothesSlice(
+                userId,
+                category,
+                style,
+                pageable
+        );
+
+        List<ClothesResponse> content = clothesSlice.getContent().stream()
+                .map(c -> ClothesResponse.from(c, s3ImageStorage.getUrl(c.getImageUrl())))
                 .toList();
+
+        return SliceResponse.of(content, clothesSlice);
     }
 
     public ClothesResponse getClothes(Long userId, Long clothesId) {
         Clothes clothes = getClothesByIdAndUserId(clothesId, userId);
-
-        return ClothesResponse.from(clothes);
+        String imageUrl = s3ImageStorage.getUrl(clothes.getImageUrl());
+        return ClothesResponse.from(clothes, imageUrl);
     }
 
     @Transactional
@@ -83,7 +108,9 @@ public class ClothesService {
                 request.getCloValue()
         );
 
-        return ClothesResponse.from(clothes);
+        String imageUrl = s3ImageStorage.getUrl(clothes.getImageUrl());
+
+        return ClothesResponse.from(clothes, imageUrl);
     }
 
     @Transactional
@@ -101,5 +128,39 @@ public class ClothesService {
     private Clothes getClothesByIdAndUserId(Long clothesId, Long userId) {
         return clothesRepository.findByIdAndUser_Id(clothesId, userId)
                 .orElseThrow(() -> new ClothesException(ClothesErrorCode.CLOTHES_NOT_FOUND));
+    }
+
+    private Slice<Clothes> getClothesSlice(
+            Long userId,
+            Category category,
+            Style style,
+            Pageable pageable
+    ) {
+        if (category != null && style != null) {
+            return clothesRepository.findByUser_IdAndCategoryAndStyle(
+                    userId,
+                    category,
+                    style,
+                    pageable
+            );
+        }
+
+        if (category != null) {
+            return clothesRepository.findByUser_IdAndCategory(
+                    userId,
+                    category,
+                    pageable
+            );
+        }
+
+        if (style != null) {
+            return clothesRepository.findByUser_IdAndStyle(
+                    userId,
+                    style,
+                    pageable
+            );
+        }
+
+        return clothesRepository.findByUser_Id(userId, pageable);
     }
 }

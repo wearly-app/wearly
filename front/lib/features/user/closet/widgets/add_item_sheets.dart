@@ -431,8 +431,9 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
           _isLocalServer = true;
           _serverStatus = 'AI 분석 완료 (배경 제거 & 속성 추출 성공)';
           
+          final name = result['name'] ?? '';
           _brandCtrl.text = brand;
-          _nameCtrl.text = brand.isNotEmpty ? '$brand $mappedCategory' : '$mappedCategory';
+          _nameCtrl.text = name.isNotEmpty ? name : (brand.isNotEmpty ? '$brand $mappedCategory' : '$mappedCategory');
           _extractedColorHex = hexColor;
           _selectedCategory = mappedCategory;
           _extractedMaterial = material;
@@ -886,20 +887,6 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
           Row(
             children: [
               const Text('아이템 이름', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
-              const Spacer(),
-              GestureDetector(
-                onTap: _crawlClothingInfo,
-                child: Row(
-                  children: [
-                    const Icon(Icons.auto_awesome, size: 13, color: Colors.deepPurple),
-                    const SizedBox(width: 4),
-                    Text(
-                      _isCrawling ? '검색 분석 중...' : 'AI 웹 크롤링 분석',
-                      style: const TextStyle(fontSize: 11, color: Colors.deepPurple, fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 6),

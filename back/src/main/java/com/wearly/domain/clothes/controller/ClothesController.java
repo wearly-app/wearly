@@ -27,7 +27,13 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.wearly.domain.clothes.service.PythonCrawlerService;
 import java.util.List;
+import java.util.Map;
+import java.io.ByteArrayInputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.awt.Color;
 
 @RestController
 @RequestMapping("/api/clothes")
@@ -37,6 +43,7 @@ public class ClothesController {
     private final ClothesService clothesService;
     private final RembgService rembgService;
     private final GeminiApiClient geminiApiClient;
+    private final PythonCrawlerService pythonCrawlerService;
 
     @PostMapping("/analyze")
     public ResponseEntity<ClothesAnalyzeResponse> analyzeClothesImage(
@@ -45,26 +52,50 @@ public class ClothesController {
         try {
             byte[] originalBytes = image.getBytes();
 
-            // 1. Remove background (누끼 따기)
             byte[] processedBytes = rembgService.removeBackground(originalBytes);
 
-            // Convert to Base64 to send to Gemini & to return as Data URI
             String base64Image = java.util.Base64.getEncoder().encodeToString(processedBytes);
             String imageUrl = "data:image/png;base64," + base64Image;
 
-            // 2. Call Gemini API to analyze clothes info
             ClothesAnalyzeResponse response = geminiApiClient.analyzeClothingImage(processedBytes, base64Image);
 
-            // 3. Update response with the transparent imageUrl
+            String brand = response.getBrand();
+            String name = "";
+            String material = response.getMaterial();
+            String productUrl = geminiApiClient.findProductUrl(base64Image, brand != null ? brand : "");
+            
+            if (productUrl != null && productUrl.startsWith("http")) {
+                Map<String, String> pythonCrawled = pythonCrawlerService.crawl(productUrl);
+                if (pythonCrawled != null) {
+                    if (!pythonCrawled.getOrDefault("name", "").isEmpty()) {
+                        brand = pythonCrawled.getOrDefault("brand", "마초");
+                        name = pythonCrawled.get("name");
+                        material = pythonCrawled.getOrDefault("material", "정보 없음");
+                    }
+                }
+            }
+            
+            // Extract dominant color locally
+            int finalColorH = response.getColorH();
+            int finalColorS = response.getColorS();
+            int finalColorV = response.getColorV();
+            int[] localColor = extractDominantColor(processedBytes);
+            if (localColor != null) {
+                finalColorH = localColor[0];
+                finalColorS = localColor[1];
+                finalColorV = localColor[2];
+            }
+            
             ClothesAnalyzeResponse finalResponse = ClothesAnalyzeResponse.builder()
                     .imageUrl(imageUrl)
                     .category(response.getCategory())
                     .style(response.getStyle())
-                    .colorH(response.getColorH())
-                    .colorS(response.getColorS())
-                    .colorV(response.getColorV())
-                    .brand(response.getBrand())
-                    .material(response.getMaterial())
+                    .colorH(finalColorH)
+                    .colorS(finalColorS)
+                    .colorV(finalColorV)
+                    .brand(brand)
+                    .name(name)
+                    .material(material)
                     .thickness(response.getThickness())
                     .cloValue(response.getCloValue())
                     .build();
@@ -73,6 +104,42 @@ public class ClothesController {
         } catch (Exception e) {
             throw new RuntimeException("Failed to analyze clothes image", e);
         }
+    }
+
+    private int[] extractDominantColor(byte[] imageBytes) {
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            if (image == null) return null;
+            long rSum = 0, gSum = 0, bSum = 0;
+            int count = 0;
+            for (int y = 0; y < image.getHeight(); y++) {
+                for (int x = 0; x < image.getWidth(); x++) {
+                    int argb = image.getRGB(x, y);
+                    int alpha = (argb >> 24) & 0xff;
+                    if (alpha > 50) { 
+                        int r = (argb >> 16) & 0xff;
+                        int g = (argb >> 8) & 0xff;
+                        int b = argb & 0xff;
+                        if (r < 240 || g < 240 || b < 240) { 
+                            rSum += r;
+                            gSum += g;
+                            bSum += b;
+                            count++;
+                        }
+                    }
+                }
+            }
+            if (count > 0) {
+                int rAvg = (int)(rSum / count);
+                int gAvg = (int)(gSum / count);
+                int bAvg = (int)(bSum / count);
+                float[] hsb = Color.RGBtoHSB(rAvg, gAvg, bAvg, null);
+                return new int[]{ (int)(hsb[0] * 360), (int)(hsb[1] * 100), (int)(hsb[2] * 100) };
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
     }
 
     @PostMapping

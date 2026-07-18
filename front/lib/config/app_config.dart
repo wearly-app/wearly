@@ -7,8 +7,8 @@ class AppConfig {
   // - Use 'http://10.0.2.2:8080' for the Android emulator to connect to localhost on your PC.
   // - Use 'http://localhost:8080' for the iOS simulator or web browser.
   // - Use your local network IP (e.g. 'http://192.168.x.x:8080') for physical mobile devices.
-  static const String apiBaseUrl = 'http://3.35.233.34:8080'; 
+  static const String apiBaseUrl = 'http://localhost:8080';
 
   // Set to true to bypass backend for testing frontend UI/UX
-  static const bool useMockApi = true;
+  static const bool useMockApi = false;
 }

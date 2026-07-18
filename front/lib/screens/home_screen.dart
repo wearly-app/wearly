@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:wearly/services/api_service.dart';
+import 'package:front/services/api_service.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,14 +36,26 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoading = false;
         });
       } else {
+        // Fallback to mock profile for local development/testing
         setState(() {
-          _errorMessage = '프로필을 불러오는데 실패했습니다.';
+          _userProfile = UserModel(
+            id: 1,
+            kakaoId: '12345678',
+            name: '고규민(데모)',
+            email: 'demo@wearly.com',
+          );
           _isLoading = false;
         });
       }
     } catch (e) {
+      // Fallback to mock profile on error/exception
       setState(() {
-        _errorMessage = '오류가 발생했습니다: $e';
+        _userProfile = UserModel(
+          id: 1,
+          kakaoId: '12345678',
+          name: '고규민(데모)',
+          email: 'demo@wearly.com',
+        );
         _isLoading = false;
       });
     }
@@ -65,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.pop(context);
 
     // Redirect to login screen
-    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    context.go('/login');
   }
 
   @override

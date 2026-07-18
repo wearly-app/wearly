@@ -16,6 +16,9 @@ jwt:
   secret: ${JWT_SECRET}
   access-token-expiration: 604800000
 
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -28,4 +31,3 @@ weather:
   api:
     key: ${WEATHER_API_KEY}
     base-url: https://api.openweathermap.org
-

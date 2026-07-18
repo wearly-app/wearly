@@ -7,7 +7,12 @@ import com.wearly.domain.clothes.dto.response.ClothesAnalyzeResponse;
 import com.wearly.domain.clothes.dto.response.ClothesWearHistoryResponse;
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.domain.clothes.service.ClothesService;
+<<<<<<< HEAD
+import com.wearly.domain.clothes.service.RembgService;
+import com.wearly.domain.clothes.service.GeminiApiClient;
+=======
 import com.wearly.domain.outfit.service.OutfitHistoryService;
+>>>>>>> origin/main
 import com.wearly.global.common.entity.Style;
 import com.wearly.global.common.response.SliceResponse;
 import com.wearly.global.config.OpenApiConfig;
@@ -36,6 +41,17 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+<<<<<<< HEAD
+import com.wearly.domain.clothes.service.PythonCrawlerService;
+import java.util.List;
+import java.util.Map;
+import java.io.ByteArrayInputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.awt.Color;
+
+=======
+>>>>>>> origin/main
 @RestController
 @RequestMapping("/api/clothes")
 @RequiredArgsConstructor
@@ -45,14 +61,113 @@ import org.springframework.web.multipart.MultipartFile;
 public class ClothesController {
 
     private final ClothesService clothesService;
+<<<<<<< HEAD
+    private final RembgService rembgService;
+    private final GeminiApiClient geminiApiClient;
+    private final PythonCrawlerService pythonCrawlerService;
+=======
     private final OutfitHistoryService outfitHistoryService;
     private final S3ImageStorage s3ImageStorage;
+>>>>>>> origin/main
 
     @Operation(summary = "옷 이미지 분석", description = "옷 이미지를 업로드하고 분석 결과를 반환한다.")
     @PostMapping("/analyze")
     public ResponseEntity<ClothesAnalyzeResponse> analyzeClothesImage(
             @RequestPart MultipartFile image
     ) {
+<<<<<<< HEAD
+        try {
+            byte[] originalBytes = image.getBytes();
+
+            byte[] processedBytes = rembgService.removeBackground(originalBytes);
+
+            String base64Image = java.util.Base64.getEncoder().encodeToString(processedBytes);
+            String imageUrl = "data:image/png;base64," + base64Image;
+
+            ClothesAnalyzeResponse response = geminiApiClient.analyzeClothingImage(processedBytes, base64Image);
+
+            String brand = response.getBrand();
+            String name = "";
+            String material = response.getMaterial();
+            String productUrl = geminiApiClient.findProductUrl(base64Image, brand != null ? brand : "");
+            
+            if (productUrl != null && productUrl.startsWith("http")) {
+                Map<String, String> pythonCrawled = pythonCrawlerService.crawl(productUrl);
+                if (pythonCrawled != null) {
+                    if (!pythonCrawled.getOrDefault("name", "").isEmpty()) {
+                        brand = pythonCrawled.getOrDefault("brand", "마초");
+                        name = pythonCrawled.get("name");
+                        material = pythonCrawled.getOrDefault("material", "정보 없음");
+                    }
+                }
+            }
+            
+            // Extract dominant color locally
+            int finalColorH = response.getColorH();
+            int finalColorS = response.getColorS();
+            int finalColorV = response.getColorV();
+            int[] localColor = extractDominantColor(processedBytes);
+            if (localColor != null) {
+                finalColorH = localColor[0];
+                finalColorS = localColor[1];
+                finalColorV = localColor[2];
+            }
+            
+            ClothesAnalyzeResponse finalResponse = ClothesAnalyzeResponse.builder()
+                    .imageUrl(imageUrl)
+                    .category(response.getCategory())
+                    .style(response.getStyle())
+                    .colorH(finalColorH)
+                    .colorS(finalColorS)
+                    .colorV(finalColorV)
+                    .brand(brand)
+                    .name(name)
+                    .material(material)
+                    .thickness(response.getThickness())
+                    .cloValue(response.getCloValue())
+                    .build();
+
+            return ResponseEntity.ok(finalResponse);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to analyze clothes image", e);
+        }
+    }
+
+    private int[] extractDominantColor(byte[] imageBytes) {
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            if (image == null) return null;
+            long rSum = 0, gSum = 0, bSum = 0;
+            int count = 0;
+            for (int y = 0; y < image.getHeight(); y++) {
+                for (int x = 0; x < image.getWidth(); x++) {
+                    int argb = image.getRGB(x, y);
+                    int alpha = (argb >> 24) & 0xff;
+                    if (alpha > 50) { 
+                        int r = (argb >> 16) & 0xff;
+                        int g = (argb >> 8) & 0xff;
+                        int b = argb & 0xff;
+                        if (r < 240 || g < 240 || b < 240) { 
+                            rSum += r;
+                            gSum += g;
+                            bSum += b;
+                            count++;
+                        }
+                    }
+                }
+            }
+            if (count > 0) {
+                int rAvg = (int)(rSum / count);
+                int gAvg = (int)(gSum / count);
+                int bAvg = (int)(bSum / count);
+                float[] hsb = Color.RGBtoHSB(rAvg, gAvg, bAvg, null);
+                return new int[]{ (int)(hsb[0] * 360), (int)(hsb[1] * 100), (int)(hsb[2] * 100) };
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+=======
         String imageKey = s3ImageStorage.upload(image);
 
         ClothesAnalyzeResponse response = ClothesAnalyzeResponse.builder()
@@ -61,6 +176,7 @@ public class ClothesController {
         // TODO: rembg 배경제거 + Vision API 연동 후 category/style/color/brand/material/thickness/cloValue 채우기
 
         return ResponseEntity.ok(response);
+>>>>>>> origin/main
     }
 
     @Operation(summary = "옷 등록", description = "현재 사용자의 디지털 옷장에 새로운 옷을 등록한다.")

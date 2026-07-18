@@ -5,7 +5,7 @@ set PATH=%JAVA_HOME%\bin;%PATH%
 
 echo Loading environment variables from .env file...
 if exist .env (
-    for /f "usebackq tokens=*" %%a in (`type .env`) do set "%%a"
+    for /f "usebackq eol=# tokens=*" %%a in (`type .env`) do set "%%a"
 ) else (
     echo .env file not found!
 )

@@ -6,7 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wearly/main.dart';
+import 'package:front/app.dart';
 
 void main() {
   testWidgets('Splash screen smoke test', (WidgetTester tester) async {

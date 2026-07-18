@@ -20,7 +20,7 @@ public class ClothesAnalyzeResponse {
     private Integer colorV;
 
     private String brand;
-
+    private String name;
     private String material;
 
     private Integer thickness;

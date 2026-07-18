@@ -2,8 +2,8 @@
 
 set -Eeuo pipefail
 
-APP_DIR="/home/ubuntu/app/back"
-LOG_FILE="/home/ubuntu/app/deploy.log"
+APP_DIR="/home/ubuntu/app/wearly/back"
+LOG_FILE="/home/ubuntu/app/wearly/back/deploy.log"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$1] $2" | tee -a "$LOG_FILE"
@@ -48,6 +48,9 @@ aws ecr get-login-password --region "$AWS_REGION" |
     --username AWS \
     --password-stdin "$ECR_REGISTRY"
 
+log "INFO" "Remove unused images before pulling the latest image"
+docker image prune -af
+
 log "INFO" "Pull latest application image"
 docker pull "$ECR_IMAGE"
 
@@ -71,5 +74,8 @@ docker compose \
   --env-file prod.env \
   -f docker-compose-prod.yml \
   ps
+
+log "INFO" "Remove images unused after deployment"
+docker image prune -af
 
 log "INFO" "Deployment complete"

@@ -140,4 +140,13 @@ public class Clothes extends BaseEntity {
         clothes.wearCount = 0;
         return clothes;
     }
+
+    public void recordWear(LocalDate wornDate) {
+        this.wearCount += 1;
+
+        if (this.lastWornAt == null ||
+                wornDate.isAfter(this.lastWornAt)) {
+            this.lastWornAt = wornDate;
+        }
+    }
 }

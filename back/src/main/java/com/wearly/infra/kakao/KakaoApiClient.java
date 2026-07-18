@@ -1,11 +1,11 @@
-package com.wearly.auth.client;
+package com.wearly.infra.kakao;
 
 import com.wearly.auth.dto.response.KakaoUserResponse;
 import com.wearly.auth.exception.AuthErrorCode;
+import com.wearly.auth.exception.AuthException;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
-import jakarta.security.auth.message.AuthException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -47,11 +47,11 @@ public class KakaoApiClient {
                 .retrieve()
                 .onStatus(
                         HttpStatusCode::is4xxClientError,
-                        response -> Mono.error(new AuthException(String.valueOf(AuthErrorCode.INVALID_KAKAO_ACCESS_TOKEN)))
+                        response -> Mono.error(new AuthException(AuthErrorCode.INVALID_KAKAO_ACCESS_TOKEN))
                 )
                 .onStatus(
                         HttpStatusCode::is5xxServerError,
-                        response -> Mono.error(new AuthException(String.valueOf(AuthErrorCode.KAKAO_SERVER_ERROR)))
+                        response -> Mono.error(new AuthException(AuthErrorCode.KAKAO_SERVER_ERROR))
                 )
                 .bodyToMono(KakaoUserResponse.class)
                 .block();

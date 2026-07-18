@@ -17,4 +17,9 @@ public interface OutfitHistoryRepository extends JpaRepository<OutfitHistory, Lo
     );
 
     List<OutfitHistory> findByOutfits_Id(Long outfitId);
+
+    boolean existsByOutfits_IdAndWornDate(
+            Long outfitId,
+            LocalDate wornDate
+    );
 }

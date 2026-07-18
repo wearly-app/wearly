@@ -3,11 +3,14 @@ spring:
     name: wearly
   profiles:
     active: dev
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   jpa:
     properties:
       hibernate:
         format_sql: true
-
 
 jwt:
   secret: ${JWT_SECRET}
@@ -15,3 +18,16 @@ jwt:
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+
+weather:
+  api:
+    key: ${WEATHER_API_KEY}
+    base-url: https://api.openweathermap.org

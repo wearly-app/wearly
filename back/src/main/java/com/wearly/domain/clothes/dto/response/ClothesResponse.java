@@ -29,12 +29,12 @@ public class ClothesResponse {
     private Integer wearCount;
     private LocalDate lastWornAt;
 
-    public static ClothesResponse from(Clothes clothes) {
+    public static ClothesResponse from(Clothes clothes, String imageUrl) {
         return ClothesResponse.builder()
                 .id(clothes.getId())
                 .category(clothes.getCategory())
                 .style(clothes.getStyle())
-                .imageUrl(clothes.getImageUrl())
+                .imageUrl(imageUrl)
                 .colorH(clothes.getColorH())
                 .colorS(clothes.getColorS())
                 .colorV(clothes.getColorV())

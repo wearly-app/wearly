@@ -26,7 +26,10 @@ public class S3ImageStorage {
     private String bucket;
 
     public String upload(MultipartFile file) {
-        String key = "clothes/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+        String key = "clothes/"
+                + UUID.randomUUID()
+                + "-"
+                + file.getOriginalFilename();
 
         try {
             PutObjectRequest request = PutObjectRequest.builder()
@@ -37,12 +40,45 @@ public class S3ImageStorage {
 
             s3Client.putObject(
                     request,
-                    RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+                    RequestBody.fromInputStream(
+                            file.getInputStream(),
+                            file.getSize()
+                    )
             );
 
             return key;
         } catch (IOException e) {
-            throw new ApplicationException(S3ErrorCode.IMAGE_UPLOAD_FAILED);
+            throw new ApplicationException(
+                    S3ErrorCode.IMAGE_UPLOAD_FAILED
+            );
+        }
+    }
+
+    public String upload(
+            byte[] imageBytes,
+            String extension,
+            String contentType
+    ) {
+        String key = "clothes/" + UUID.randomUUID() + "." + extension;
+
+        try {
+            PutObjectRequest request = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .contentType(contentType)
+                    .contentLength((long) imageBytes.length)
+                    .build();
+
+            s3Client.putObject(
+                    request,
+                    RequestBody.fromBytes(imageBytes)
+            );
+
+            return key;
+        } catch (Exception e) {
+            throw new ApplicationException(
+                    S3ErrorCode.IMAGE_UPLOAD_FAILED
+            );
         }
     }
 

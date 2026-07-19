@@ -56,7 +56,7 @@ public class Clothes extends BaseEntity {
     @Column(length = 50)
     private String brand;
 
-    @Column(length = 50)
+    @Column(length = 255)
     private String material;
 
     @Column(columnDefinition = "SMALLINT")

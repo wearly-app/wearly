@@ -10,7 +10,6 @@ import com.wearly.domain.clothes.dto.response.ProductSearchCandidate;
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.domain.clothes.service.ClothesService;
 import com.wearly.domain.clothes.service.GeminiApiClient;
-import com.wearly.domain.clothes.service.MachoProductSearchService;
 import com.wearly.domain.clothes.service.ProductCrawlerService;
 import com.wearly.domain.clothes.service.RembgService;
 import com.wearly.domain.clothes.service.UniqloProductSearchService;
@@ -51,7 +50,6 @@ import java.io.ByteArrayInputStream;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 @RestController
 @RequestMapping("/api/clothes")
@@ -65,7 +63,6 @@ public class ClothesController {
     private final OutfitHistoryService outfitHistoryService;
     private final RembgService rembgService;
     private final GeminiApiClient geminiApiClient;
-    private final MachoProductSearchService machoProductSearchService;
     private final UniqloProductSearchService uniqloProductSearchService;
     private final ProductCrawlerService productCrawlerService;
     private final S3ImageStorage s3ImageStorage;
@@ -108,21 +105,11 @@ public class ClothesController {
                     ? analyzedResponse.getCloValue()
                     : 0.45;
 
-            Optional<ProductSearchCandidate> matchedProduct = Stream.of(
-                            machoProductSearchService.search(
-                                    analyzedResponse.getCategory(),
-                                    name
-                            ),
-                            uniqloProductSearchService.search(
-                                    analyzedResponse.getCategory(),
-                                    name
-                            )
-                    )
-                    .flatMap(Optional::stream)
-                    .max((first, second) -> Double.compare(
-                            first.similarity(),
-                            second.similarity()
-                    ));
+            Optional<ProductSearchCandidate> matchedProduct =
+                    uniqloProductSearchService.search(
+                            analyzedResponse.getCategory(),
+                            name
+                    );
 
             String productUrl = matchedProduct
                     .map(ProductSearchCandidate::productUrl)

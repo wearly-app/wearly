@@ -105,4 +105,4 @@ jobs:
             -i ~/.ssh/id_deploy \
             -o ServerAliveInterval=30 \
             "${EC2_USER}@${EC2_HOST}" \
-            "cd /home/ubuntu/app/wearly/back && ./deploy.sh"
+            "cd /home/ubuntu/app/wearly/back && bash ./deploy.sh"

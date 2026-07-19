@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:front/features/user/closet/models/clothing_item.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
+import 'package:front/features/user/closet/services/recommendation_service.dart';
 import 'package:front/features/user/closet/pages/codi_maker_page.dart';
 
 // ──────────────────────────────────────────────
@@ -20,7 +21,7 @@ class _AiLoadingPageState extends State<AiLoadingPage> {
   int _step = 0;
   Timer? _timer;
   final List<String> _loadingTexts = const [
-    "실시간 기온 및 날씨 데이터 분석 중...",
+    "시연용 기온 및 날씨 조건 분석 중...",
     "옷장 속 장기 미착용 의류 스캔 중...",
     "기온 및 스타일 기반 코디 매칭 중...",
   ];
@@ -86,7 +87,11 @@ class _AiLoadingPageState extends State<AiLoadingPage> {
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: SweepGradient(
-                        colors: [Colors.purple, Colors.blue, Colors.transparent],
+                        colors: [
+                          Colors.purple,
+                          Colors.blue,
+                          Colors.transparent
+                        ],
                       ),
                     ),
                     padding: const EdgeInsets.all(6),
@@ -154,48 +159,41 @@ class _AiLoadingPageState extends State<AiLoadingPage> {
 class RecommendationResultPage extends StatefulWidget {
   final VoidCallback? onRefresh;
   final String selectedStyle;
-  const RecommendationResultPage({super.key, this.onRefresh, this.selectedStyle = '미니멀'});
+  const RecommendationResultPage(
+      {super.key, this.onRefresh, this.selectedStyle = '미니멀'});
 
   @override
-  State<RecommendationResultPage> createState() => _RecommendationResultPageState();
+  State<RecommendationResultPage> createState() =>
+      _RecommendationResultPageState();
 }
 
 class _RecommendationResultPageState extends State<RecommendationResultPage> {
-  bool _isAlternativeMain = false;
-  bool _isSwapped = false;
+  static const double _demoTemperature = 28;
+  final RecommendationService _recommendationService =
+      const RecommendationService();
   bool _isMainLoading = false;
   bool _isBottomLoading = false;
-
-  late final ClothingItem _uniqloCrewneck;
-  late final ClothingItem _uniqloNavy;
-  late final ClothingItem _uniqloStraight;
-  late final ClothingItem _hatchingroomCurved;
+  int _mainIndex = 0;
+  int _bottomIndex = 0;
+  late final List<ClothingRecommendation> _mainRecommendations;
+  late final List<ClothingRecommendation> _bottomRecommendations;
 
   @override
   void initState() {
     super.initState();
     final wardrobe = ClosetService.instance.wardrobeNotifier.value;
-    _uniqloCrewneck = wardrobe.firstWhere((i) => i.id == '4', orElse: () => wardrobe[3]);
-    _uniqloNavy = wardrobe.firstWhere((i) => i.id == '15', orElse: () => wardrobe[12]);
-    _uniqloStraight = wardrobe.firstWhere(
-      (i) => i.name.contains('연청'),
-      orElse: () => ClothingItem(
-        id: '8_temp',
-        name: '스트레이트 데님 (연청)',
-        category: '하의',
-        brand: '유니클로',
-        assetPath: 'assets/uniqlo_straight.png',
-        fallbackColor: const Color(0xFFADD8E6),
-        fallbackIcon: Icons.checkroom,
-        seasons: const ['봄', '여름', '가을'],
-        situation: const ['데일리'],
-        thickness: 2,
-        colorHex: '#ADD8E6',
-        styleLevel: 2,
-        wearCount: 0,
-      ),
+    _mainRecommendations = _recommendationService.rank(
+      wardrobe: wardrobe,
+      category: '상의',
+      temperature: _demoTemperature,
+      selectedStyle: widget.selectedStyle,
     );
-    _hatchingroomCurved = wardrobe.firstWhere((i) => i.id == '7', orElse: () => wardrobe[6]);
+    _bottomRecommendations = _recommendationService.rank(
+      wardrobe: wardrobe,
+      category: '하의',
+      temperature: _demoTemperature,
+      selectedStyle: widget.selectedStyle,
+    );
   }
 
   void _triggerMainRescueTargetSwap() {
@@ -207,9 +205,9 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
     Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
         setState(() {
-          _isAlternativeMain = !_isAlternativeMain;
+          _mainIndex = (_mainIndex + 1) % _mainRecommendations.length;
           _isMainLoading = false;
-          _isSwapped = false;
+          _bottomIndex = 0;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -219,16 +217,16 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                 const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  _isAlternativeMain
-                      ? '✨ 메인 구출 대상이 유니클로 네이비 크루넥 T로 교체되었습니다.'
-                      : '✨ 메인 구출 대상이 유니클로 드라이 크루넥T로 복원되었습니다.',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  '✨ 다음 방치 의류 ${_mainRecommendations[_mainIndex].item.name}을(를) 추천합니다.',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
             backgroundColor: Colors.purple.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -245,7 +243,7 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
     Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
         setState(() {
-          _isSwapped = !_isSwapped;
+          _bottomIndex = (_bottomIndex + 1) % _bottomRecommendations.length;
           _isBottomLoading = false;
         });
       }
@@ -253,8 +251,8 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
   }
 
   void _navigateToCanvas() {
-    final mainItem = _isAlternativeMain ? _uniqloNavy : _uniqloCrewneck;
-    final bottomItem = _isSwapped ? _hatchingroomCurved : _uniqloStraight;
+    final mainItem = _mainRecommendations[_mainIndex].item;
+    final bottomItem = _bottomRecommendations[_bottomIndex].item;
 
     Navigator.push(
       context,
@@ -270,8 +268,10 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentMain = _isAlternativeMain ? _uniqloNavy : _uniqloCrewneck;
-    final currentBottom = _isSwapped ? _hatchingroomCurved : _uniqloStraight;
+    final currentMainRecommendation = _mainRecommendations[_mainIndex];
+    final currentBottomRecommendation = _bottomRecommendations[_bottomIndex];
+    final currentMain = currentMainRecommendation.item;
+    final currentBottom = currentBottomRecommendation.item;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -328,7 +328,8 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.purple.shade50,
                                   borderRadius: BorderRadius.circular(8),
@@ -344,15 +345,17 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                               ),
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.amber.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Row(
+                                child: const Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Icon(Icons.auto_awesome, size: 9, color: Colors.amber),
+                                  children: [
+                                    Icon(Icons.auto_awesome,
+                                        size: 9, color: Colors.amber),
                                     SizedBox(width: 3),
                                     Text(
                                       '옷장 속 숨은 보석',
@@ -381,14 +384,17 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                       Expanded(
                         child: Center(
                           child: _isMainLoading
-                              ? const CircularProgressIndicator(color: Colors.purple)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.purple)
                               : _buildGarmentImage(currentMain),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Center(
                         child: Text(
-                          _isMainLoading ? '새로운 장기 방치 의류 스캔 중...' : currentMain.name,
+                          _isMainLoading
+                              ? '새로운 장기 방치 의류 스캔 중...'
+                              : currentMain.name,
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
@@ -401,7 +407,8 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                       Center(
                         child: Text(
                           _isMainLoading ? '' : currentMain.brand,
-                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 10, color: Colors.grey),
                         ),
                       ),
                     ],
@@ -411,7 +418,8 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFF3F0FF), Color(0xFFEBF5FF)],
@@ -424,9 +432,10 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.lightbulb_outline, size: 14, color: Colors.indigo),
+                    const Row(
+                      children: [
+                        Icon(Icons.lightbulb_outline,
+                            size: 14, color: Colors.indigo),
                         SizedBox(width: 5),
                         Text(
                           '💡 AI 스타일링 리포트',
@@ -440,7 +449,7 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '6월 6일 기온(28°C ⛅)과 선택하신 [${widget.selectedStyle}] 스타일에 맞춰 통기성이 좋은 소재와 깔끔한 매칭을 진행했습니다.\n최근 5일간 무지 반팔티 위주로 착용하여 가장 방치된 ${_isAlternativeMain ? "유니클로 네이비 크루넥 T(0회)" : "유니클로 드라이 크루넥T(0회)"}와 오늘 새로 등록될 유니클로 연청 데님을 구출하기 위한 매칭입니다.',
+                      '시연용 기온(${_demoTemperature.toInt()}°C ⛅)과 선택하신 [${widget.selectedStyle}] 스타일을 반영했습니다.\n${currentMain.name}: 방치 ${currentMainRecommendation.neglectedDays}일 · 방치 ${currentMainRecommendation.neglectScore.toStringAsFixed(0)} + 날씨 ${currentMainRecommendation.weatherScore.toStringAsFixed(0)} + 스타일 ${currentMainRecommendation.styleScore.toStringAsFixed(0)} = ${currentMainRecommendation.totalScore.toStringAsFixed(0)}점\n${currentBottom.name}: 방치 ${currentBottomRecommendation.neglectedDays}일 · 총 ${currentBottomRecommendation.totalScore.toStringAsFixed(0)}점',
                       style: const TextStyle(
                         fontSize: 10,
                         height: 1.4,
@@ -473,7 +482,8 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.blue.shade50,
                               borderRadius: BorderRadius.circular(8),
@@ -489,7 +499,7 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                           ),
                           const Spacer(),
                           Text(
-                            _isSwapped ? '데일리 스트릿 매치' : '추천 캐주얼 매치',
+                            '${widget.selectedStyle} · ${currentBottomRecommendation.totalScore.toStringAsFixed(0)}점',
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -502,14 +512,17 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                       Expanded(
                         child: Center(
                           child: _isBottomLoading
-                              ? const CircularProgressIndicator(color: Colors.purple)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.purple)
                               : _buildGarmentImage(currentBottom),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Center(
                         child: Text(
-                          _isBottomLoading ? '새로운 하의 추천 조합 탐색 중...' : currentBottom.name,
+                          _isBottomLoading
+                              ? '새로운 하의 추천 조합 탐색 중...'
+                              : currentBottom.name,
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
@@ -522,7 +535,8 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                       Center(
                         child: Text(
                           _isBottomLoading ? '' : currentBottom.brand,
-                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 10, color: Colors.grey),
                         ),
                       ),
                     ],
@@ -577,16 +591,24 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
     if (item.imageBytes != null) {
       return Image.memory(item.imageBytes!, fit: BoxFit.contain);
     } else if (item.assetPath != null) {
-      return Image.asset(item.assetPath!, fit: BoxFit.contain);
-    } else {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: item.fallbackColor.withValues(alpha: 0.15),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(item.fallbackIcon, size: 48, color: item.fallbackColor),
+      return Image.asset(
+        item.assetPath!,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => _buildFallbackGarment(item),
       );
+    } else {
+      return _buildFallbackGarment(item);
     }
+  }
+
+  Widget _buildFallbackGarment(ClothingItem item) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: item.fallbackColor.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(item.fallbackIcon, size: 48, color: item.fallbackColor),
+    );
   }
 }

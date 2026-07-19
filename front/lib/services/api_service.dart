@@ -43,6 +43,54 @@ class UserModel {
   }
 }
 
+class ClothingItemsPage {
+  final List<Map<String, dynamic>> content;
+  final int page;
+  final bool hasNext;
+
+  const ClothingItemsPage({
+    required this.content,
+    required this.page,
+    required this.hasNext,
+  });
+
+  factory ClothingItemsPage.fromJson(Map<String, dynamic> json) {
+    final content = json['content'] as List<dynamic>? ?? const [];
+
+    return ClothingItemsPage(
+      content: content
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList(),
+      page: (json['page'] as num?)?.toInt() ?? 0,
+      hasNext: json['hasNext'] as bool? ?? false,
+    );
+  }
+}
+
+class OutfitItemsPage {
+  final List<Map<String, dynamic>> content;
+  final int page;
+  final bool hasNext;
+
+  const OutfitItemsPage({
+    required this.content,
+    required this.page,
+    required this.hasNext,
+  });
+
+  factory OutfitItemsPage.fromJson(Map<String, dynamic> json) {
+    final content = json['content'] as List<dynamic>? ?? const [];
+
+    return OutfitItemsPage(
+      content: content
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList(),
+      page: (json['page'] as num?)?.toInt() ?? 0,
+      hasNext: json['hasNext'] as bool? ?? false,
+    );
+  }
+}
+
 class ApiService {
   final _storage = const FlutterSecureStorage();
   static const String _jwtKey = 'wearly_jwt_token';
@@ -320,16 +368,17 @@ class ApiService {
       final bytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(bytes);
 
-      // 마초(macho707) 쇼핑몰 시연용 Mock 데이터
+      // UI development mock data
       return {
+        'imageKey': 'mock/clothes/${imageFile.name}',
         'imageUrl': 'data:image/png;base64,$base64Image',
         'category': 'TOP', // 상의
         'colorH': 20, // #4A2F22 (Brown)
         'colorS': 36,
         'colorV': 29,
         'season': ['봄', '가을'],
-        'style': 'VINTAGE', // 아메카지/데이트
-        'brand': '마초(MACHO)',
+        'style': 'CASUAL',
+        'brand': 'No Brand',
         'material': '코튼 100%',
         'thickness': 2, // 3.0 slider
         'cloValue': 0.65,
@@ -370,16 +419,23 @@ class ApiService {
   }
 
   /// Create a new clothing item in the backend database.
-  Future<bool> createClothingItem(Map<String, dynamic> itemData) async {
+  Future<Map<String, dynamic>?> createClothingItem(
+      Map<String, dynamic> itemData) async {
     if (AppConfig.useMockApi) {
       print('Using Mock API for createClothingItem: $itemData');
       await Future.delayed(const Duration(milliseconds: 500));
-      return true;
+      return {
+        ...itemData,
+        'id': DateTime.now().millisecondsSinceEpoch,
+        'imageUrl': null,
+        'wearCount': 0,
+        'lastWornAt': null,
+      };
     }
 
     try {
       final token = await getJwtToken();
-      if (token == null) return false;
+      if (token == null) return null;
 
       final response = await http.post(
         Uri.parse('${AppConfig.apiBaseUrl}/api/clothes'),
@@ -391,7 +447,8 @@ class ApiService {
       );
 
       if (response.statusCode == 201) {
-        return true;
+        return jsonDecode(utf8.decode(response.bodyBytes))
+            as Map<String, dynamic>;
       } else {
         print(
             'Failed to create clothing item: ${response.statusCode} - ${response.body}');
@@ -399,45 +456,258 @@ class ApiService {
     } catch (e) {
       print('Error creating clothing item: $e');
     }
+    return null;
+  }
+
+  /// Load the current user's clothes from the backend database.
+  Future<ClothingItemsPage?> getClothingItems({
+    int page = 0,
+    int size = 10,
+  }) async {
+    if (AppConfig.useMockApi) {
+      return ClothingItemsPage(
+        content: const [],
+        page: page,
+        hasNext: false,
+      );
+    }
+
+    try {
+      final token = await getJwtToken();
+      if (token == null) return null;
+
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/clothes').replace(
+        queryParameters: {
+          'page': page.toString(),
+          'size': size.toString(),
+        },
+      );
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        return ClothingItemsPage.fromJson(data);
+      }
+
+      print(
+          'Failed to load clothing items: ${response.statusCode} - ${response.body}');
+    } catch (e) {
+      print('Error loading clothing items: $e');
+    }
+
+    return null;
+  }
+
+  /// Soft-delete a clothing item owned by the current user.
+  Future<bool> deleteClothingItem(String clothesId) async {
+    if (AppConfig.useMockApi) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      return true;
+    }
+
+    try {
+      final token = await getJwtToken();
+      if (token == null) return false;
+
+      final response = await http.delete(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/clothes/$clothesId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 204) {
+        return true;
+      }
+
+      print(
+        'Failed to delete clothing item: '
+        '${response.statusCode} - ${response.body}',
+      );
+    } catch (e) {
+      print('Error deleting clothing item: $e');
+    }
+
     return false;
   }
 
-  /// Send clothing URL to backend to crawl data (macho707 etc).
-  Future<Map<String, dynamic>?> crawlClothingUrl(String url) async {
+  /// Create an outfit from clothes owned by the current user.
+  Future<Map<String, dynamic>?> createOutfit({
+    required String name,
+    required String style,
+    required List<int> clothesIds,
+  }) async {
+    final requestBody = {
+      'name': name,
+      'style': style,
+      'clothesIds': clothesIds,
+    };
+
     if (AppConfig.useMockApi) {
-      print('Using Mock API for crawlClothingUrl: $url');
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 500));
       return {
-        'name': '마초 골지 헨리넥 셔츠',
-        'imageUrl': '',
-        'material': '코튼 100%',
-        'brand': '마초',
-        'category': 'TOP'
+        'id': DateTime.now().millisecondsSinceEpoch,
+        ...requestBody,
+        'thumbnailUrl': null,
+        'favorite': false,
+        'clothes': const [],
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
       };
     }
 
     try {
       final token = await getJwtToken();
+      if (token == null) return null;
 
       final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/clothes/crawl'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/outfits'),
         headers: {
           'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'url': url}),
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 201) {
+        return jsonDecode(utf8.decode(response.bodyBytes))
+            as Map<String, dynamic>;
+      }
+
+      print(
+        'Failed to create outfit: '
+        '${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
+    } catch (e) {
+      print('Error creating outfit: $e');
+    }
+
+    return null;
+  }
+
+  /// Soft-delete an outfit owned by the current user.
+  Future<bool> deleteOutfit(String outfitId) async {
+    if (AppConfig.useMockApi) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      return true;
+    }
+
+    try {
+      final token = await getJwtToken();
+      if (token == null) return false;
+
+      final response = await http.delete(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/outfits/$outfitId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 204) {
+        return true;
+      }
+
+      print(
+        'Failed to delete outfit: '
+        '${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
+    } catch (e) {
+      print('Error deleting outfit: $e');
+    }
+
+    return false;
+  }
+
+  /// Load the current user's saved outfits.
+  Future<OutfitItemsPage?> getOutfits({
+    int page = 0,
+    int size = 10,
+  }) async {
+    if (AppConfig.useMockApi) {
+      return OutfitItemsPage(
+        content: const [],
+        page: page,
+        hasNext: false,
+      );
+    }
+
+    try {
+      final token = await getJwtToken();
+      if (token == null) return null;
+
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/outfits').replace(
+        queryParameters: {
+          'page': page.toString(),
+          'size': size.toString(),
+        },
+      );
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        return OutfitItemsPage.fromJson(data);
+      }
+
+      print(
+        'Failed to load outfits: '
+        '${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
+    } catch (e) {
+      print('Error loading outfits: $e');
+    }
+
+    return null;
+  }
+
+  /// Record a saved outfit as worn today.
+  Future<Map<String, dynamic>?> wearOutfit(String outfitId) async {
+    if (AppConfig.useMockApi) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      return {
+        'historyId': DateTime.now().millisecondsSinceEpoch,
+        'outfitId': int.tryParse(outfitId),
+        'wornDate': DateTime.now().toIso8601String().substring(0, 10),
+        'clothesIds': const [],
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+    }
+
+    try {
+      final token = await getJwtToken();
+      if (token == null) return null;
+
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/outfits/$outfitId/wear'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 201) {
         return jsonDecode(utf8.decode(response.bodyBytes))
             as Map<String, dynamic>;
-      } else {
-        print(
-            'Web crawling failed with status: ${response.statusCode} - ${response.body}');
       }
+
+      print(
+        'Failed to record outfit wear: '
+        '${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
     } catch (e) {
-      print('Error during web crawling API call: $e');
+      print('Error recording outfit wear: $e');
     }
+
     return null;
   }
 }

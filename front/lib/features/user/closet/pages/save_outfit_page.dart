@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:front/features/user/closet/models/clothing_item.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
+import 'package:front/services/api_service.dart';
 
 class SaveOutfitPage extends StatefulWidget {
   final List<CanvasItem> items;
@@ -21,6 +22,7 @@ class SaveOutfitPage extends StatefulWidget {
 class _SaveOutfitPageState extends State<SaveOutfitPage> {
   String? _selectedCategory;
   bool _saveAsTodayOutfit = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -33,7 +35,9 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
     }
   }
 
-  void _saveOutfit() {
+  Future<void> _saveOutfit() async {
+    if (_isSaving) return;
+
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('코디 카테고리를 선택하거나 추가해 주세요.')),
@@ -50,35 +54,92 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
       return;
     }
 
+    final uniqueClothesIds = clothesList.map((clothes) => clothes.id).toSet();
+    final clothesIds =
+        uniqueClothesIds.map(int.tryParse).whereType<int>().toList();
+
+    if (clothesIds.length != uniqueClothesIds.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('서버에 저장된 옷만 코디에 추가할 수 있습니다.'),
+        ),
+      );
+      return;
+    }
+
+    if (clothesIds.length > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('한 코디에는 옷을 최대 10개까지 등록할 수 있습니다.'),
+        ),
+      );
+      return;
+    }
+
     final title = widget.isAIRecommendedMode
         ? 'AI 추천 $_selectedCategory 코디 조합'
         : '$_selectedCategory 코디 조합';
-    final saveDate = widget.isAIRecommendedMode
-        ? DateTime(2026, 6, 6)
-        : DateTime.now();
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final created = await ApiService().createOutfit(
+      name: title,
+      style: _toBackendStyle(_selectedCategory!),
+      clothesIds: clothesIds,
+    );
+
+    if (!mounted) return;
+
+    if (created == null) {
+      setState(() {
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('코디 저장에 실패했습니다. 잠시 후 다시 시도해주세요.'),
+        ),
+      );
+      return;
+    }
+
+    final saveDate = DateTime.tryParse(created['createdAt'] as String? ?? '') ??
+        DateTime.now();
+    final createdName = created['name'] as String?;
 
     final newOutfit = SavedOutfit(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: title,
+      id: created['id'].toString(),
+      title: createdName?.isNotEmpty == true ? createdName! : title,
       category: _selectedCategory!,
       items: clothesList,
       createdAt: saveDate,
     );
 
-    // Save to ClosetService
     ClosetService.instance.saveOutfit(newOutfit);
 
+    var wearRecorded = !_saveAsTodayOutfit;
     if (_saveAsTodayOutfit) {
-      ClosetService.instance.addWornRecord(WornRecord(
-        date: saveDate,
-        outfit: newOutfit,
-        weather: widget.isAIRecommendedMode ? '⛅ 구름조금' : '☀️ 맑음',
-        temp: widget.isAIRecommendedMode ? 28 : 25,
-      ));
-      for (var cloth in clothesList) {
-        ClosetService.instance.markAsWorn(cloth);
+      final wearResponse = await ApiService().wearOutfit(newOutfit.id);
+      if (!mounted) return;
+
+      wearRecorded = wearResponse != null;
+      if (wearRecorded) {
+        ClosetService.instance.addWornRecord(WornRecord(
+          date: saveDate,
+          outfit: newOutfit,
+          weather: widget.isAIRecommendedMode ? '⛅ 구름조금' : '☀️ 맑음',
+          temp: widget.isAIRecommendedMode ? 28 : 25,
+        ));
+        for (final cloth in clothesList) {
+          ClosetService.instance.markAsWorn(cloth);
+        }
       }
     }
+
+    setState(() {
+      _isSaving = false;
+    });
 
     widget.onRefresh?.call();
 
@@ -90,15 +151,20 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                _saveAsTodayOutfit
+                _saveAsTodayOutfit && wearRecorded
                     ? '✨ [$title] 저장 및 오늘의 룩으로 등록되었습니다!'
-                    : '✨ [$title]이 성공적으로 저장되었습니다!',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    : _saveAsTodayOutfit
+                        ? '코디는 저장됐지만 오늘의 룩 등록은 실패했습니다.'
+                        : '✨ [$title]이 성공적으로 저장되었습니다!',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
           ],
         ),
-        backgroundColor: Colors.green.shade600,
+        backgroundColor: _saveAsTodayOutfit && !wearRecorded
+            ? Colors.orange.shade700
+            : Colors.green.shade600,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 3),
@@ -113,13 +179,34 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
     }
   }
 
+  String _toBackendStyle(String style) {
+    return switch (style) {
+      '미니멀' => 'MINIMAL',
+      '스트릿' => 'STREET',
+      '스포티' => 'SPORTY',
+      '격식' || '오피스룩' || '클래식' || '댄디' => 'FORMAL',
+      '빈티지' || '아메카지' => 'VINTAGE',
+      _ => 'CASUAL',
+    };
+  }
+
   void _showAddCategoryDialog() {
     String? selectedNewCat;
-    final List<String> presetOptions = const [
-      '시티보이', '고프코어', '댄디', 'Y2K', '페미닌', '클래식', '빈티지', '오피스룩', '홈웨어'
+    const List<String> presetOptions = [
+      '시티보이',
+      '고프코어',
+      '댄디',
+      'Y2K',
+      '페미닌',
+      '클래식',
+      '빈티지',
+      '오피스룩',
+      '홈웨어'
     ];
-    final currentCategories = ClosetService.instance.outfitCategoriesNotifier.value;
-    final availableOptions = presetOptions.where((opt) => !currentCategories.contains(opt)).toList();
+    final currentCategories =
+        ClosetService.instance.outfitCategoriesNotifier.value;
+    final availableOptions =
+        presetOptions.where((opt) => !currentCategories.contains(opt)).toList();
 
     if (availableOptions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -133,43 +220,45 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('새 카테고리 추가', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) {
-            return SingleChildScrollView(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: availableOptions.map((opt) {
-                  final isSelected = selectedNewCat == opt;
-                  return ChoiceChip(
-                    label: Text(opt),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setDialogState(() {
-                          selectedNewCat = opt;
-                        });
-                      }
-                    },
-                    selectedColor: const Color(0xFF1A1A1A),
-                    checkmarkColor: Colors.white,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey.shade200),
-                    ),
-                  );
-                }).toList(),
-              ),
-            );
-          }
-        ),
+        title: const Text('새 카테고리 추가',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: StatefulBuilder(builder: (context, setDialogState) {
+          return SingleChildScrollView(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: availableOptions.map((opt) {
+                final isSelected = selectedNewCat == opt;
+                return ChoiceChip(
+                  label: Text(opt),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setDialogState(() {
+                        selectedNewCat = opt;
+                      });
+                    }
+                  },
+                  selectedColor: const Color(0xFF1A1A1A),
+                  checkmarkColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                        color: isSelected
+                            ? const Color(0xFF1A1A1A)
+                            : Colors.grey.shade200),
+                  ),
+                );
+              }).toList(),
+            ),
+          );
+        }),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -188,7 +277,8 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A1A1A),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('추가'),
           ),
@@ -215,17 +305,26 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('코디 카테고리 선택', style: TextStyle(fontSize: 14, color: Color(0xFF1A1A1A), fontWeight: FontWeight.w800)),
+                  const Text('코디 카테고리 선택',
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF1A1A1A),
+                          fontWeight: FontWeight.w800)),
                   TextButton.icon(
                     onPressed: _showAddCategoryDialog,
                     icon: const Icon(Icons.add, size: 14, color: Colors.purple),
-                    label: const Text('카테고리 직접 만들기', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.purple)),
+                    label: const Text('카테고리 직접 만들기',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple)),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               ValueListenableBuilder<List<String>>(
-                valueListenable: ClosetService.instance.outfitCategoriesNotifier,
+                valueListenable:
+                    ClosetService.instance.outfitCategoriesNotifier,
                 builder: (context, outfitCategories, child) {
                   return Wrap(
                     spacing: 8,
@@ -250,7 +349,10 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
                         backgroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey.shade200),
+                          side: BorderSide(
+                              color: isSelected
+                                  ? const Color(0xFF1A1A1A)
+                                  : Colors.grey.shade200),
                         ),
                       );
                     }).toList(),
@@ -258,8 +360,11 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
                 },
               ),
               const SizedBox(height: 32),
-
-              const Text('저장할 의류 목록', style: TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w600)),
+              const Text('저장할 의류 목록',
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600)),
               const SizedBox(height: 10),
               Container(
                 height: 110,
@@ -268,7 +373,8 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade100),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: widget.items.length,
@@ -289,13 +395,32 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(6),
                             child: cloth.imageBytes != null
-                                ? Image.memory(cloth.imageBytes!, fit: BoxFit.contain)
-                                : cloth.assetPath != null
-                                    ? Image.asset(cloth.assetPath!, fit: BoxFit.contain)
-                                    : Container(
-                                        color: cloth.fallbackColor.withValues(alpha: 0.15),
-                                        child: Icon(cloth.fallbackIcon, size: 24, color: cloth.fallbackColor),
-                                      ),
+                                ? Image.memory(cloth.imageBytes!,
+                                    fit: BoxFit.contain)
+                                : cloth.imageUrl?.isNotEmpty == true
+                                    ? Image.network(
+                                        cloth.imageUrl!,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: cloth.fallbackColor
+                                              .withValues(alpha: 0.15),
+                                          child: Icon(
+                                            cloth.fallbackIcon,
+                                            size: 24,
+                                            color: cloth.fallbackColor,
+                                          ),
+                                        ),
+                                      )
+                                    : cloth.assetPath != null
+                                        ? Image.asset(cloth.assetPath!,
+                                            fit: BoxFit.contain)
+                                        : Container(
+                                            color: cloth.fallbackColor
+                                                .withValues(alpha: 0.15),
+                                            child: Icon(cloth.fallbackIcon,
+                                                size: 24,
+                                                color: cloth.fallbackColor),
+                                          ),
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -303,7 +428,8 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
                           width: 60,
                           child: Text(
                             cloth.name,
-                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold),
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                           ),
@@ -323,7 +449,10 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
                 child: CheckboxListTile(
                   title: const Text(
                     '오늘의 룩(착용 기록)으로 바로 등록하기',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A)),
                   ),
                   subtitle: const Text(
                     '코디 저장과 동시에 오늘 날짜의 착용 기록에 추가합니다.',
@@ -332,8 +461,10 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
                   value: _saveAsTodayOutfit,
                   activeColor: const Color(0xFF1A1A1A),
                   checkColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   onChanged: (val) {
                     setState(() {
                       _saveAsTodayOutfit = val ?? false;
@@ -342,19 +473,34 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
                 ),
               ),
               const SizedBox(height: 32),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveOutfit,
+                  onPressed: _isSaving ? null : _saveOutfit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A1A1A),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     elevation: 0,
                   ),
-                  child: const Text('코디 조합 저장 완료', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          '코디 조합 저장 완료',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                 ),
               ),
             ],

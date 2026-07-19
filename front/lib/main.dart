@@ -35,8 +35,9 @@ void main() async {
     javaScriptAppKey: AppConfig.kakaoJavaScriptAppKey,
   );
 
-  // Initialize closet demo data
-  ClosetService.instance.initializeDemoData();
+  if (AppConfig.useMockApi) {
+    ClosetService.instance.initializeDemoData();
+  }
 
   runApp(const WearlyApp());
 }

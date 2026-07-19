@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:front/config/app_config.dart';
 import 'package:front/features/user/closet/models/clothing_item.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
 import 'package:front/features/user/closet/pages/codi_maker_page.dart';
+import 'package:front/services/api_service.dart';
 
 class SavedOutfitsPage extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -14,11 +16,147 @@ class SavedOutfitsPage extends StatefulWidget {
 class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
   String _selectedCategory = '전체';
   final _newCategoryCtrl = TextEditingController();
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasNext = false;
+  int _nextPage = 0;
+  String? _deletingOutfitId;
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOutfits();
+  }
 
   @override
   void dispose() {
     _newCategoryCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadOutfits({bool reset = true}) async {
+    if (AppConfig.useMockApi) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    if (!reset && (!_hasNext || _isLoadingMore)) return;
+
+    if (reset) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+        _nextPage = 0;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
+
+    final response = await ApiService().getOutfits(
+      page: reset ? 0 : _nextPage,
+      size: 10,
+    );
+    if (!mounted) return;
+
+    if (response == null) {
+      setState(() {
+        if (reset) {
+          _isLoading = false;
+          _loadError = '코디 목록을 불러오지 못했습니다.';
+        } else {
+          _isLoadingMore = false;
+        }
+      });
+      return;
+    }
+
+    final outfits = response.content.map(_savedOutfitFromJson).toList();
+    if (reset) {
+      ClosetService.instance.replaceSavedOutfits(outfits);
+    } else {
+      ClosetService.instance.appendSavedOutfits(outfits);
+    }
+
+    setState(() {
+      _isLoading = false;
+      _isLoadingMore = false;
+      _hasNext = response.hasNext;
+      _nextPage = response.page + 1;
+    });
+  }
+
+  SavedOutfit _savedOutfitFromJson(Map<String, dynamic> json) {
+    final style = _styleLabel(json['style'] as String?);
+    final clothesJson = json['clothes'] as List<dynamic>? ?? const [];
+    final clothes = clothesJson
+        .map((item) => _outfitClothesFromJson(
+              Map<String, dynamic>.from(item as Map),
+              style,
+            ))
+        .toList();
+
+    return SavedOutfit(
+      id: json['id'].toString(),
+      title: json['name'] as String? ?? '이름 없는 코디',
+      category: style,
+      items: clothes,
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  ClothingItem _outfitClothesFromJson(
+    Map<String, dynamic> json,
+    String style,
+  ) {
+    final category = _categoryLabel(json['category'] as String?);
+    final brand = json['brand'] as String? ?? '';
+    final name = json['name'] as String?;
+
+    return ClothingItem(
+      id: json['id'].toString(),
+      name: name?.isNotEmpty == true
+          ? name!
+          : (brand.isEmpty ? category : '$brand $category'),
+      category: category,
+      brand: brand.isEmpty ? 'No Brand' : brand,
+      imageUrl: json['imageUrl'] as String?,
+      fallbackColor: Colors.grey.shade300,
+      fallbackIcon: Icons.checkroom,
+      seasons: const [],
+      situation: [style],
+      thickness: 2,
+      colorHex: '#D9D9D9',
+      styleLevel: 2,
+    );
+  }
+
+  String _categoryLabel(String? category) {
+    return switch (category) {
+      'TOP' => '상의',
+      'BOTTOM' => '하의',
+      'OUTER' => '아우터',
+      'ONEPIECE' => '원피스',
+      'SHOES' => '신발',
+      'BAG' => '가방',
+      _ => '기타',
+    };
+  }
+
+  String _styleLabel(String? style) {
+    return switch (style) {
+      'MINIMAL' => '미니멀',
+      'STREET' => '스트릿',
+      'SPORTY' => '스포티',
+      'FORMAL' => '격식',
+      'VINTAGE' => '빈티지',
+      _ => '캐주얼',
+    };
   }
 
   void _addNewCategory() {
@@ -48,14 +186,17 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('새 코디 카테고리 추가', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: const Text('새 코디 카테고리 추가',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         content: TextField(
           controller: _newCategoryCtrl,
           decoration: InputDecoration(
             hintText: '예: 비즈니스 캐주얼, 휴가룩',
             filled: true,
             fillColor: Colors.grey.shade100,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none),
           ),
           autofocus: true,
         ),
@@ -69,7 +210,8 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A1A1A),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('추가'),
           ),
@@ -82,8 +224,10 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('카테고리 삭제', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: Text('"$cat" 카테고리를 삭제하시겠습니까?\n이 카테고리의 코디 조합은 "캐주얼" 카테고리로 변경됩니다.'),
+        title: const Text('카테고리 삭제',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content:
+            Text('"$cat" 카테고리를 삭제하시겠습니까?\n이 카테고리의 코디 조합은 "캐주얼" 카테고리로 변경됩니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -104,7 +248,8 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('삭제'),
           ),
@@ -113,35 +258,60 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
     );
   }
 
-  void _deleteOutfit(SavedOutfit outfit) {
-    showDialog(
+  Future<void> _deleteOutfit(SavedOutfit outfit) async {
+    if (_deletingOutfitId != null) return;
+
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('코디 조합 삭제', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('코디 조합 삭제',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         content: const Text('이 코디 조합을 삭제하시겠습니까?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('취소', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () {
-              ClosetService.instance.removeOutfit(outfit);
-              Navigator.pop(ctx);
-              widget.onRefresh?.call();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('🗑️ 코디 조합이 삭제되었습니다.')),
-              );
-            },
+            onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('삭제'),
           ),
         ],
       ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _deletingOutfitId = outfit.id;
+    });
+
+    final deleted = await ApiService().deleteOutfit(outfit.id);
+    if (!mounted) return;
+
+    setState(() {
+      _deletingOutfitId = null;
+    });
+
+    if (!deleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('코디 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.'),
+        ),
+      );
+      return;
+    }
+
+    ClosetService.instance.removeOutfit(outfit);
+    widget.onRefresh?.call();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('🗑️ 코디 조합이 삭제되었습니다.')),
     );
   }
 
@@ -153,12 +323,14 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+            const Icon(Icons.check_circle_outline,
+                color: Colors.white, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 '🎉 [${outfit.category}] 조합을 오늘 착용으로 기록했습니다. (의류 누적 착용 횟수 증가)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
             ),
           ],
@@ -181,7 +353,9 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
           builder: (context, savedOutfits, child) {
             final outfits = _selectedCategory == '전체'
                 ? savedOutfits
-                : savedOutfits.where((o) => o.category == _selectedCategory).toList();
+                : savedOutfits
+                    .where((o) => o.category == _selectedCategory)
+                    .toList();
 
             return Scaffold(
               backgroundColor: const Color(0xFFF9FAFB),
@@ -191,7 +365,13 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
                 centerTitle: true,
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.create_new_folder_outlined, color: Color(0xFF1A1A1A)),
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _isLoading ? null : () => _loadOutfits(),
+                    tooltip: '새로고침',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.create_new_folder_outlined,
+                        color: Color(0xFF1A1A1A)),
                     onPressed: _showAddCategoryDialog,
                     tooltip: '카테고리 추가',
                   ),
@@ -208,27 +388,49 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         children: [
                           _categoryTab('전체', outfitCategories),
-                          ...outfitCategories.map((cat) => _categoryTab(cat, outfitCategories)),
+                          ...outfitCategories.map(
+                              (cat) => _categoryTab(cat, outfitCategories)),
                         ],
                       ),
                     ),
                     Expanded(
-                      child: outfits.isEmpty
-                          ? _buildEmptyState()
-                          : GridView.builder(
-                              padding: const EdgeInsets.all(16),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.76,
-                              ),
-                              itemCount: outfits.length,
-                              itemBuilder: (context, index) {
-                                final outfit = outfits[index];
-                                return _buildOutfitCard(outfit);
-                              },
-                            ),
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _loadError != null
+                              ? _buildLoadError()
+                              : outfits.isEmpty
+                                  ? _buildEmptyState()
+                                  : NotificationListener<ScrollNotification>(
+                                      onNotification: (notification) {
+                                        if (notification.metrics.extentAfter <
+                                            240) {
+                                          _loadOutfits(reset: false);
+                                        }
+                                        return false;
+                                      },
+                                      child: GridView.builder(
+                                        padding: const EdgeInsets.all(16),
+                                        gridDelegate:
+                                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          crossAxisSpacing: 16,
+                                          mainAxisSpacing: 16,
+                                          childAspectRatio: 0.76,
+                                        ),
+                                        itemCount: outfits.length +
+                                            (_isLoadingMore ? 1 : 0),
+                                        itemBuilder: (context, index) {
+                                          if (index == outfits.length) {
+                                            return const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            );
+                                          }
+                                          final outfit = outfits[index];
+                                          return _buildOutfitCard(outfit);
+                                        },
+                                      ),
+                                    ),
                     ),
                   ],
                 ),
@@ -240,9 +442,26 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
     );
   }
 
+  Widget _buildLoadError() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(_loadError!, style: TextStyle(color: Colors.grey.shade600)),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: () => _loadOutfits(),
+            child: const Text('다시 시도'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _categoryTab(String cat, List<String> outfitCategories) {
     final isSelected = _selectedCategory == cat;
-    final isDefault = cat == '전체' || const ['캐주얼', '미니멀', '스트릿', '아메카지', '스포티', '격식', '데이트'].contains(cat);
+    final isDefault = cat == '전체' ||
+        const ['캐주얼', '미니멀', '스트릿', '아메카지', '스포티', '격식', '데이트'].contains(cat);
 
     return GestureDetector(
       onTap: () => setState(() => _selectedCategory = cat),
@@ -257,9 +476,16 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF1A1A1A) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey.shade200),
+          border: Border.all(
+              color:
+                  isSelected ? const Color(0xFF1A1A1A) : Colors.grey.shade200),
           boxShadow: isSelected
-              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4, offset: const Offset(0, 2))]
+              ? [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2))
+                ]
               : null,
         ),
         child: Row(
@@ -297,13 +523,20 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.shade100)),
-            child: Icon(Icons.style_outlined, size: 48, color: Colors.grey.shade300),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey.shade100)),
+            child: Icon(Icons.style_outlined,
+                size: 48, color: Colors.grey.shade300),
           ),
           const SizedBox(height: 16),
           Text(
             '등록된 코디 조합이 없습니다',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade600),
           ),
           const SizedBox(height: 6),
           Text(
@@ -338,7 +571,7 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
               color: const Color(0xFFF8F9FA),
               padding: const EdgeInsets.all(8),
               child: Row(
-                children: outfit.items.map((item) {
+                children: outfit.items.take(3).map((item) {
                   return Expanded(
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -358,13 +591,32 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: item.imageBytes != null
-                            ? Image.memory(item.imageBytes!, fit: BoxFit.contain)
-                            : item.assetPath != null
-                                ? Image.asset(item.assetPath!, fit: BoxFit.contain)
-                                : Container(
-                                    color: item.fallbackColor.withValues(alpha: 0.15),
-                                    child: Icon(item.fallbackIcon, size: 24, color: item.fallbackColor),
-                                  ),
+                            ? Image.memory(item.imageBytes!,
+                                fit: BoxFit.contain)
+                            : item.imageUrl?.isNotEmpty == true
+                                ? Image.network(
+                                    item.imageUrl!,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: item.fallbackColor
+                                          .withValues(alpha: 0.15),
+                                      child: Icon(
+                                        item.fallbackIcon,
+                                        size: 24,
+                                        color: item.fallbackColor,
+                                      ),
+                                    ),
+                                  )
+                                : item.assetPath != null
+                                    ? Image.asset(item.assetPath!,
+                                        fit: BoxFit.contain)
+                                    : Container(
+                                        color: item.fallbackColor
+                                            .withValues(alpha: 0.15),
+                                        child: Icon(item.fallbackIcon,
+                                            size: 24,
+                                            color: item.fallbackColor),
+                                      ),
                       ),
                     ),
                   );
@@ -379,7 +631,10 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
               children: [
                 Text(
                   outfit.title.isNotEmpty ? outfit.title : outfit.category,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A)),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
@@ -397,7 +652,10 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
                           child: Text(
                             '오늘 입기',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700),
                           ),
                         ),
                       ),
@@ -422,19 +680,32 @@ class _SavedOutfitsPageState extends State<SavedOutfitsPage> {
                           color: const Color(0xFF1A1A1A),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.edit, size: 13, color: Colors.white),
+                        child: const Icon(Icons.edit,
+                            size: 13, color: Colors.white),
                       ),
                     ),
                     const SizedBox(width: 6),
                     GestureDetector(
-                      onTap: () => _deleteOutfit(outfit),
+                      onTap: _deletingOutfitId == null
+                          ? () => _deleteOutfit(outfit)
+                          : null,
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(Icons.delete_outline, size: 13, color: Colors.red.shade700),
+                        child: _deletingOutfitId == outfit.id
+                            ? SizedBox(
+                                width: 13,
+                                height: 13,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.red.shade700,
+                                ),
+                              )
+                            : Icon(Icons.delete_outline,
+                                size: 13, color: Colors.red.shade700),
                       ),
                     ),
                   ],

@@ -17,6 +17,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "outfits")
 @Getter
@@ -40,6 +42,8 @@ public class Outfits extends BaseEntity {
     private String thumbnailUrl;
 
     private boolean isFavorite;
+
+    private LocalDateTime deletedAt;
 
     public static Outfits create(
             User user,
@@ -66,5 +70,9 @@ public class Outfits extends BaseEntity {
 
     public void toggleFavorite() {
         this.isFavorite = !this.isFavorite;
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

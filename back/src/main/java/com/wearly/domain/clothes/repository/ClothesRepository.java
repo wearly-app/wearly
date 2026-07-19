@@ -14,36 +14,45 @@ import java.util.Optional;
 
 public interface ClothesRepository extends JpaRepository<Clothes, Long> {
 
-    List<Clothes> findByUser(User user);
+    List<Clothes> findByUserAndDeletedAtIsNull(User user);
 
-    List<Clothes> findByUser_Id(Long userId);
+    List<Clothes> findByUser_IdAndDeletedAtIsNull(Long userId);
 
-    List<Clothes> findByUser_IdAndCategory(Long userId, Category category);
+    List<Clothes> findByUser_IdAndCategoryAndDeletedAtIsNull(
+            Long userId,
+            Category category
+    );
 
-    Slice<Clothes> findByUser_Id(Long userId, Pageable pageable);
+    Slice<Clothes> findByUser_IdAndDeletedAtIsNull(
+            Long userId,
+            Pageable pageable
+    );
 
-    Slice<Clothes> findByUser_IdAndCategory(
+    Slice<Clothes> findByUser_IdAndCategoryAndDeletedAtIsNull(
             Long userId,
             Category category,
             Pageable pageable
     );
 
-    Slice<Clothes> findByUser_IdAndStyle(
+    Slice<Clothes> findByUser_IdAndStyleAndDeletedAtIsNull(
             Long userId,
             Style style,
             Pageable pageable
     );
 
-    Slice<Clothes> findByUser_IdAndCategoryAndStyle(
+    Slice<Clothes> findByUser_IdAndCategoryAndStyleAndDeletedAtIsNull(
             Long userId,
             Category category,
             Style style,
             Pageable pageable
     );
 
-    Optional<Clothes> findByIdAndUser_Id(Long id, Long userId);
+    Optional<Clothes> findByIdAndUser_IdAndDeletedAtIsNull(
+            Long id,
+            Long userId
+    );
 
-    List<Clothes> findAllByIdInAndUser_Id(
+    List<Clothes> findAllByIdInAndUser_IdAndDeletedAtIsNull(
             Collection<Long> ids,
             Long userId
     );

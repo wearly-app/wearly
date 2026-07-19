@@ -11,27 +11,40 @@ import java.util.Optional;
 
 public interface OutfitRepository extends JpaRepository<Outfits, Long> {
 
-    List<Outfits> findByUser_Id(Long userId);
+    List<Outfits> findByUser_IdAndDeletedAtIsNull(Long userId);
 
-    List<Outfits> findByUser_IdAndStyle(Long userId, Style style);
+    List<Outfits> findByUser_IdAndStyleAndDeletedAtIsNull(
+            Long userId,
+            Style style
+    );
 
-    List<Outfits> findByUser_IdAndIsFavoriteTrue(Long userId);
-
-    List<Outfits> findByUser_IdAndIsFavoriteFalseOrderByCreatedAtDesc(
+    List<Outfits> findByUser_IdAndIsFavoriteTrueAndDeletedAtIsNull(
             Long userId
     );
 
-    List<Outfits> findByUser_IdAndIsFavoriteTrueOrderByCreatedAtDesc(
+    List<Outfits> findByUser_IdAndIsFavoriteFalseAndDeletedAtIsNullOrderByCreatedAtDesc(
             Long userId
     );
 
-    Optional<Outfits> findByIdAndUser_Id(Long id, Long userId);
+    List<Outfits> findByUser_IdAndIsFavoriteTrueAndDeletedAtIsNullOrderByCreatedAtDesc(
+            Long userId
+    );
 
-    List<Outfits> findByUser_IdOrderByCreatedAtDesc(Long userId);
+    Optional<Outfits> findByIdAndUser_IdAndDeletedAtIsNull(
+            Long id,
+            Long userId
+    );
 
-    Slice<Outfits> findByUser_Id(Long userId, Pageable pageable);
+    List<Outfits> findByUser_IdAndDeletedAtIsNullOrderByCreatedAtDesc(
+            Long userId
+    );
 
-    Slice<Outfits> findByUser_IdAndIsFavorite(
+    Slice<Outfits> findByUser_IdAndDeletedAtIsNull(
+            Long userId,
+            Pageable pageable
+    );
+
+    Slice<Outfits> findByUser_IdAndIsFavoriteAndDeletedAtIsNull(
             Long userId,
             boolean favorite,
             Pageable pageable

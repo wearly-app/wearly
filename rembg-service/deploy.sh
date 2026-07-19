@@ -29,10 +29,6 @@ set +a
 [[ -n "${ECR_REPO:-}" ]] || fail "ECR_REPO is not configured"
 [[ -n "${REMBG_ECR_REPO:-}" ]] || fail "REMBG_ECR_REPO is not configured"
 
-if [[ "$AWS_ACCOUNT_ID" == "YOUR_AWS_ACCOUNT_ID" ]]; then
-  fail "AWS_ACCOUNT_ID still has the example value"
-fi
-
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 ECR_IMAGE="${ECR_REGISTRY}/${ECR_REPO}:latest"
 REMBG_ECR_IMAGE="${ECR_REGISTRY}/${REMBG_ECR_REPO}:latest"
@@ -40,31 +36,20 @@ REMBG_ECR_IMAGE="${ECR_REGISTRY}/${REMBG_ECR_REPO}:latest"
 export ECR_IMAGE
 export REMBG_ECR_IMAGE
 
-log "INFO" "Pull latest backend source"
-git fetch origin backend
-git switch backend
-git pull --ff-only origin backend
-
 log "INFO" "Login to ECR"
-aws ecr get-login-password --region "$AWS_REGION" |
-  docker login \
+timeout 30 aws ecr get-login-password --region "$AWS_REGION" |
+  timeout 30 docker login \
     --username AWS \
     --password-stdin "$ECR_REGISTRY"
 
-log "INFO" "Remove unused images before pulling the latest image"
-docker image prune -af
-
-log "INFO" "Pull latest application image"
-docker pull "$ECR_IMAGE"
-
 log "INFO" "Pull latest rembg image"
-docker pull "$REMBG_ECR_IMAGE"
+timeout 300 docker pull "$REMBG_ECR_IMAGE"
 
-log "INFO" "Ensure rembg container is running with the latest image"
+log "INFO" "Recreate rembg container"
 docker compose \
   --env-file prod.env \
   -f docker-compose-prod.yml \
-  up -d --no-deps rembg-service
+  up -d --no-deps --force-recreate rembg-service
 
 log "INFO" "Wait for rembg service health check"
 for attempt in $(seq 1 60); do
@@ -92,34 +77,13 @@ for attempt in $(seq 1 60); do
   sleep 5
 done
 
-log "INFO" "Recreate application container"
+log "INFO" "Rembg container is healthy"
 docker compose \
   --env-file prod.env \
   -f docker-compose-prod.yml \
-  up -d --no-deps --force-recreate app
+  ps rembg-service
 
-log "INFO" "Wait for application startup"
-sleep 10
+log "INFO" "Remove dangling images after deployment"
+docker image prune -f
 
-if ! docker inspect -f '{{.State.Running}}' wearly-app |
-  grep -q true; then
-  docker logs --tail 100 wearly-app | tee -a "$LOG_FILE"
-  fail "Application container failed to start"
-fi
-
-if ! docker inspect -f '{{.State.Running}}' wearly-rembg |
-  grep -q true; then
-  docker logs --tail 100 wearly-rembg | tee -a "$LOG_FILE"
-  fail "Rembg container failed to start"
-fi
-
-log "INFO" "Application and rembg containers are running"
-docker compose \
-  --env-file prod.env \
-  -f docker-compose-prod.yml \
-  ps
-
-log "INFO" "Remove images unused after deployment"
-docker image prune -af
-
-log "INFO" "Deployment complete"
+log "INFO" "Rembg deployment complete"

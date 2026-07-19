@@ -1,0 +1,76 @@
+#!/bin/bash
+
+set -Eeuo pipefail
+
+APP_DIR="/home/ubuntu/app/wearly/back"
+LOG_FILE="/home/ubuntu/app/wearly/back/deploy.log"
+
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$1] $2" | tee -a "$LOG_FILE"
+}
+
+fail() {
+  log "ERROR" "$1"
+  exit 1
+}
+
+cd "$APP_DIR" || fail "Application directory not found: $APP_DIR"
+
+[[ -f deploy.env ]] || fail "deploy.env not found"
+[[ -f prod.env ]] || fail "prod.env not found"
+
+set -a
+source deploy.env
+source prod.env
+set +a
+
+[[ -n "${AWS_REGION:-}" ]] || fail "AWS_REGION is not configured"
+[[ -n "${AWS_ACCOUNT_ID:-}" ]] || fail "AWS_ACCOUNT_ID is not configured"
+[[ -n "${ECR_REPO:-}" ]] || fail "ECR_REPO is not configured"
+[[ -n "${REMBG_ECR_REPO:-}" ]] || fail "REMBG_ECR_REPO is not configured"
+
+if [[ "$AWS_ACCOUNT_ID" == "YOUR_AWS_ACCOUNT_ID" ]]; then
+  fail "AWS_ACCOUNT_ID still has the example value"
+fi
+
+ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+ECR_IMAGE="${ECR_REGISTRY}/${ECR_REPO}:latest"
+REMBG_ECR_IMAGE="${ECR_REGISTRY}/${REMBG_ECR_REPO}:latest"
+
+export ECR_IMAGE
+export REMBG_ECR_IMAGE
+
+log "INFO" "Login to ECR"
+timeout 30 aws ecr get-login-password --region "$AWS_REGION" |
+  timeout 30 docker login \
+    --username AWS \
+    --password-stdin "$ECR_REGISTRY"
+
+log "INFO" "Pull latest application image"
+timeout 180 docker pull "$ECR_IMAGE"
+
+log "INFO" "Recreate application container"
+docker compose \
+  --env-file prod.env \
+  -f docker-compose-prod.yml \
+  up -d --no-deps --force-recreate app
+
+log "INFO" "Wait for application startup"
+sleep 10
+
+if ! docker inspect -f '{{.State.Running}}' wearly-app |
+  grep -q true; then
+  docker logs --tail 100 wearly-app | tee -a "$LOG_FILE"
+  fail "Application container failed to start"
+fi
+
+log "INFO" "Application container is running"
+docker compose \
+  --env-file prod.env \
+  -f docker-compose-prod.yml \
+  ps
+
+log "INFO" "Remove images unused after deployment"
+docker image prune -f
+
+log "INFO" "Application deployment complete"

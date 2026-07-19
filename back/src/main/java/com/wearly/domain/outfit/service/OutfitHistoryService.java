@@ -43,7 +43,8 @@ public class OutfitHistoryService {
 
     @Transactional
     public OutfitWearResponse wearOutfit(Long userId, Long outfitId) {
-        Outfits outfit = outfitRepository.findByIdAndUser_Id(outfitId, userId)
+        Outfits outfit = outfitRepository
+                .findByIdAndUser_IdAndDeletedAtIsNull(outfitId, userId)
                 .orElseThrow(() -> new OutfitException(OutfitErrorCode.OUTFIT_NOT_FOUND));
 
         LocalDate wornDate = LocalDate.now(KOREA_ZONE_ID);
@@ -89,7 +90,8 @@ public class OutfitHistoryService {
             int page,
             int size
     ) {
-        clothesRepository.findByIdAndUser_Id(clothesId, userId)
+        clothesRepository
+                .findByIdAndUser_IdAndDeletedAtIsNull(clothesId, userId)
                 .orElseThrow(() -> new ClothesException(ClothesErrorCode.CLOTHES_NOT_FOUND));
 
         Pageable pageable = PageRequest.of(page, size);

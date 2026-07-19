@@ -6,6 +6,7 @@ on:
       - backend
     paths:
       - "back/**"
+      - "rembg-service/**"
       - ".github/workflows/backend-deploy.yml"
 
 permissions:
@@ -19,6 +20,7 @@ concurrency:
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  REMBG_ECR_REPOSITORY: ${{ vars.REMBG_ECR_REPOSITORY }}
 
 jobs:
   deploy:
@@ -54,12 +56,27 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Docker image
+      - name: Build and push Spring Docker image
         working-directory: back
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}"
+
+          docker build \
+            -t "${IMAGE_URI}:latest" \
+            -t "${IMAGE_URI}:${GITHUB_SHA}" \
+            .
+
+          docker push "${IMAGE_URI}:latest"
+          docker push "${IMAGE_URI}:${GITHUB_SHA}"
+
+      - name: Build and push rembg Docker image
+        working-directory: rembg-service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE_URI="${ECR_REGISTRY}/${REMBG_ECR_REPOSITORY}"
 
           docker build \
             -t "${IMAGE_URI}:latest" \

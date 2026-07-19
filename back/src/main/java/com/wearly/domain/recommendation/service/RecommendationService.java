@@ -40,7 +40,8 @@ public class RecommendationService {
                 latitude,
                 longitude
         );
-        List<Clothes> wardrobe = clothesRepository.findByUser_Id(userId);
+        List<Clothes> wardrobe = clothesRepository
+                .findByUser_IdAndDeletedAtIsNull(userId);
         double targetClo = targetCloFor(weather.getFeelsLikeTemperature() != null
                 ? weather.getFeelsLikeTemperature()
                 : weather.getTemperature());

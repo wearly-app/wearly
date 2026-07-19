@@ -12,6 +12,8 @@ public class ClothesCreateRequest {
     @NotNull
     private Category category;
 
+    private String name;
+
     private Style style;
 
     @NotBlank

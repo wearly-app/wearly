@@ -40,6 +40,7 @@ public class ClothesService {
 
         Clothes clothes = Clothes.create(
                 user,
+                request.getName(),
                 request.getCategory(),
                 request.getStyle(),
                 request.getImageKey(),
@@ -96,6 +97,7 @@ public class ClothesService {
         Clothes clothes = getClothesByIdAndUserId(clothesId, userId);
 
         clothes.update(
+                request.getName(),
                 request.getCategory(),
                 request.getStyle(),
                 request.getImageKey(),

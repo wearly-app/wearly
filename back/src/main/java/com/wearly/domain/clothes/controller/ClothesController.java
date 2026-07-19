@@ -142,10 +142,12 @@ public class ClothesController {
                     "png",
                     "image/png"
             );
+            String imageUrl = s3ImageStorage.getUrl(imageKey);
 
             ClothesAnalyzeResponse response =
                     ClothesAnalyzeResponse.builder()
-                            .imageUrl(imageKey)
+                            .imageKey(imageKey)
+                            .imageUrl(imageUrl)
                             .category(analyzedResponse.getCategory())
                             .style(analyzedResponse.getStyle())
                             .colorH(finalColorH)

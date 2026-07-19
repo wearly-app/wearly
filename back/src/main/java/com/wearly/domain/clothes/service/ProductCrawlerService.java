@@ -6,6 +6,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -23,8 +24,18 @@ public class ProductCrawlerService {
     private static final int CONNECTION_TIMEOUT_MILLIS = 5000;
     private static final int MAX_BODY_TEXT_LENGTH = 15000;
     private static final int MAX_RESPONSE_BODY_SIZE = 2 * 1024 * 1024;
+    private static final String MACHO_HOST = "macho707.com";
 
     public Map<String, String> crawl(String targetUrl) {
+        if (!isMachoUrl(targetUrl)) {
+            log.warn(
+                    "Unsupported crawling domain. targetUrl: {}",
+                    targetUrl
+            );
+
+            return null;
+        }
+
         try {
             Document document = Jsoup.connect(targetUrl)
                     .userAgent(USER_AGENT)
@@ -48,6 +59,28 @@ public class ProductCrawlerService {
             );
 
             return null;
+        }
+    }
+
+    private boolean isMachoUrl(String targetUrl) {
+        try {
+            URI uri = URI.create(targetUrl);
+            String host = uri.getHost();
+            String scheme = uri.getScheme();
+
+            if (host == null || scheme == null) {
+                return false;
+            }
+
+            boolean supportedScheme = scheme.equalsIgnoreCase("http")
+                    || scheme.equalsIgnoreCase("https");
+
+            boolean supportedHost = host.equalsIgnoreCase(MACHO_HOST)
+                    || host.toLowerCase().endsWith("." + MACHO_HOST);
+
+            return supportedScheme && supportedHost;
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 

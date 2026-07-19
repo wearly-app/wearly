@@ -9,6 +9,7 @@ import lombok.Getter;
 @Builder
 public class ClothesAnalyzeResponse {
 
+    private String imageKey;
     private String imageUrl;
 
     private Category category;

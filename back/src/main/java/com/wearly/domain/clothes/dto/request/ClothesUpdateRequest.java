@@ -11,7 +11,7 @@ public class ClothesUpdateRequest {
 
     private Style style;
 
-    private String imageUrl;
+    private String imageKey;
 
     private Integer colorH;
     private Integer colorS;

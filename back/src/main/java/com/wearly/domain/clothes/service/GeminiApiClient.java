@@ -147,9 +147,12 @@ public class GeminiApiClient {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey.trim();
         Map<String, Object> requestBody = new HashMap<>();
         Map<String, Object> partText = new HashMap<>();
-        partText.put("text", "Find the exact product webpage URL for this clothing item. " +
-                "Hint: It is highly likely from the store " + storeHint + ". " +
-                "Respond ONLY with the URL string (e.g. https://macho707.com/product/...). Do not add any other text.");
+        partText.put("text", "Find the exact product webpage URL for this clothing item " +
+                "only on the macho707.com online store. " +
+                "Do not return a URL from any other domain. " +
+                "Respond ONLY with a macho707.com product URL " +
+                "(e.g. https://macho707.com/product/...). " +
+                "Do not add any other text.");
         Map<String, Object> partImage = new HashMap<>();
         Map<String, String> inlineData = new HashMap<>();
         inlineData.put("mimeType", "image/png");

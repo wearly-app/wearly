@@ -42,7 +42,7 @@ public class ClothesService {
                 user,
                 request.getCategory(),
                 request.getStyle(),
-                request.getImageUrl(),
+                request.getImageKey(),
                 request.getColorH(),
                 request.getColorS(),
                 request.getColorV(),
@@ -98,7 +98,7 @@ public class ClothesService {
         clothes.update(
                 request.getCategory(),
                 request.getStyle(),
-                request.getImageUrl(),
+                request.getImageKey(),
                 request.getColorH(),
                 request.getColorS(),
                 request.getColorV(),

@@ -4,12 +4,16 @@ import com.wearly.domain.clothes.dto.request.ClothesCreateRequest;
 import com.wearly.domain.clothes.dto.request.ClothesUpdateRequest;
 import com.wearly.domain.clothes.dto.response.ClothesAnalyzeResponse;
 import com.wearly.domain.clothes.dto.response.ClothesResponse;
+import com.wearly.domain.clothes.dto.response.ClothesThermalAnalysis;
 import com.wearly.domain.clothes.dto.response.ClothesWearHistoryResponse;
+import com.wearly.domain.clothes.dto.response.ProductSearchCandidate;
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.domain.clothes.service.ClothesService;
 import com.wearly.domain.clothes.service.GeminiApiClient;
+import com.wearly.domain.clothes.service.MachoProductSearchService;
 import com.wearly.domain.clothes.service.ProductCrawlerService;
 import com.wearly.domain.clothes.service.RembgService;
+import com.wearly.domain.clothes.service.UniqloProductSearchService;
 import com.wearly.domain.outfit.service.OutfitHistoryService;
 import com.wearly.global.common.entity.Style;
 import com.wearly.global.common.response.SliceResponse;
@@ -46,6 +50,8 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 @RestController
 @RequestMapping("/api/clothes")
@@ -59,6 +65,8 @@ public class ClothesController {
     private final OutfitHistoryService outfitHistoryService;
     private final RembgService rembgService;
     private final GeminiApiClient geminiApiClient;
+    private final MachoProductSearchService machoProductSearchService;
+    private final UniqloProductSearchService uniqloProductSearchService;
     private final ProductCrawlerService productCrawlerService;
     private final S3ImageStorage s3ImageStorage;
 
@@ -91,13 +99,34 @@ public class ClothesController {
                     );
 
             String brand = analyzedResponse.getBrand();
-            String name = "";
+            String name = analyzedResponse.getName();
             String material = analyzedResponse.getMaterial();
+            int finalThickness = analyzedResponse.getThickness() != null
+                    ? analyzedResponse.getThickness()
+                    : 2;
+            double finalCloValue = analyzedResponse.getCloValue() != null
+                    ? analyzedResponse.getCloValue()
+                    : 0.45;
 
-            String productUrl = geminiApiClient.findProductUrl(
-                    base64Image,
-                    brand != null ? brand : ""
-            );
+            Optional<ProductSearchCandidate> matchedProduct = Stream.of(
+                            machoProductSearchService.search(
+                                    analyzedResponse.getCategory(),
+                                    name
+                            ),
+                            uniqloProductSearchService.search(
+                                    analyzedResponse.getCategory(),
+                                    name
+                            )
+                    )
+                    .flatMap(Optional::stream)
+                    .max((first, second) -> Double.compare(
+                            first.similarity(),
+                            second.similarity()
+                    ));
+
+            String productUrl = matchedProduct
+                    .map(ProductSearchCandidate::productUrl)
+                    .orElse(null);
 
             if (productUrl != null && productUrl.startsWith("http")) {
                 Map<String, String> crawledResult =
@@ -105,15 +134,41 @@ public class ClothesController {
 
                 if (crawledResult != null
                         && !crawledResult.getOrDefault("name", "").isEmpty()) {
-                    brand = crawledResult.getOrDefault(
-                            "brand",
-                            brand != null ? brand : ""
-                    );
-                    name = crawledResult.getOrDefault("name", "");
-                    material = crawledResult.getOrDefault(
-                            "material",
-                            material != null ? material : "정보 없음"
-                    );
+                    String crawledBrand = crawledResult.get("brand");
+                    String crawledName = crawledResult.get("name");
+                    String crawledMaterial = crawledResult.get("material");
+
+                    if (crawledBrand != null
+                            && !crawledBrand.isBlank()) {
+                        brand = crawledBrand;
+                    }
+
+                    if (crawledName != null
+                            && !crawledName.isBlank()) {
+                        name = crawledName;
+                    }
+
+                    if (crawledMaterial != null
+                            && !crawledMaterial.isBlank()) {
+                        material = crawledMaterial;
+
+                        ClothesThermalAnalysis thermalAnalysis =
+                                geminiApiClient.refineThermalValues(
+                                        analyzedResponse.getCategory(),
+                                        name,
+                                        material,
+                                        crawledResult.get("bodyText"),
+                                        finalThickness,
+                                        finalCloValue
+                                );
+
+                        if (thermalAnalysis != null) {
+                            finalThickness =
+                                    thermalAnalysis.thickness();
+                            finalCloValue =
+                                    thermalAnalysis.cloValue();
+                        }
+                    }
                 }
             }
 
@@ -156,8 +211,8 @@ public class ClothesController {
                             .brand(brand)
                             .name(name)
                             .material(material)
-                            .thickness(analyzedResponse.getThickness())
-                            .cloValue(analyzedResponse.getCloValue())
+                            .thickness(finalThickness)
+                            .cloValue(finalCloValue)
                             .build();
 
             return ResponseEntity.ok(response);

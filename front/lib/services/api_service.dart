@@ -5,7 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
-import 'package:wearly/config/app_config.dart';
+import 'package:front/config/app_config.dart';
+import 'package:image_picker/image_picker.dart';
 
 // Helper to generate a PKCE-compliant secure random code verifier
 String _generateCodeVerifier() {
@@ -141,19 +142,16 @@ class ApiService {
         final redirectUri = '${Uri.base.origin}/auth.html';
         print('Web exchanging token with redirectUri: $redirectUri');
 
-        // Exchange for Kakao Access Token
-        final tokenResponse = await AuthApi.instance.issueAccessToken(
-          authCode: authCode,
-          redirectUri: redirectUri,
-          codeVerifier: codeVerifier,
-        );
-        final kakaoAccessToken = tokenResponse.accessToken;
-
-        // Call backend with Kakao Access Token
+        // Call backend directly with the Authorization Code, Redirect URI, and Code Verifier
+        // (exchanging the code for a token is handled on the backend to avoid CORS restrictions on Web)
         final response = await http.post(
           Uri.parse('${AppConfig.apiBaseUrl}/api/auth/kakao'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'accessToken': kakaoAccessToken}),
+          body: jsonEncode({
+            'authCode': authCode,
+            'redirectUri': redirectUri,
+            'codeVerifier': codeVerifier,
+          }),
         );
 
         if (response.statusCode == 200) {
@@ -255,5 +253,130 @@ class ApiService {
     } catch (e) {
       print('Kakao SDK logout error: $e');
     }
+  }
+
+  /// Send clothing image to backend to remove background and extract metadata.
+  Future<Map<String, dynamic>?> analyzeClothingImage(XFile imageFile) async {
+    if (AppConfig.useMockApi) {
+      print('Using Mock API for analyzeClothingImage');
+      await Future.delayed(const Duration(seconds: 2)); // Simulate network delay
+      final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      
+      // 마초(macho707) 쇼핑몰 시연용 Mock 데이터
+      return {
+        'imageUrl': 'data:image/png;base64,$base64Image',
+        'category': 'TOP', // 상의
+        'colorH': 20, // #4A2F22 (Brown)
+        'colorS': 36,
+        'colorV': 29,
+        'season': ['봄', '가을'],
+        'style': 'VINTAGE', // 아메카지/데이트
+        'brand': '마초(MACHO)',
+        'material': '코튼 100%',
+        'thickness': 2, // 3.0 slider
+        'cloValue': 0.65,
+      };
+    }
+
+    try {
+      final token = await getJwtToken();
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/clothes/analyze');
+      final request = http.MultipartRequest('POST', uri);
+
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      // Read bytes to support both Web and Mobile platforms
+      final bytes = await imageFile.readAsBytes();
+      final multipartFile = http.MultipartFile.fromBytes(
+        'image',
+        bytes,
+        filename: imageFile.name,
+      );
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      } else {
+        print('Image analysis failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error during image analysis API call: $e');
+    }
+    return null;
+  }
+
+  /// Create a new clothing item in the backend database.
+  Future<bool> createClothingItem(Map<String, dynamic> itemData) async {
+    if (AppConfig.useMockApi) {
+      print('Using Mock API for createClothingItem: $itemData');
+      await Future.delayed(const Duration(milliseconds: 500));
+      return true;
+    }
+
+    try {
+      final token = await getJwtToken();
+      if (token == null) return false;
+
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/clothes'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(itemData),
+      );
+
+      if (response.statusCode == 201) {
+        return true;
+      } else {
+        print('Failed to create clothing item: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Error creating clothing item: $e');
+    }
+    return false;
+  }
+
+  /// Send clothing URL to backend to crawl data (macho707 etc).
+  Future<Map<String, dynamic>?> crawlClothingUrl(String url) async {
+    if (AppConfig.useMockApi) {
+      print('Using Mock API for crawlClothingUrl: $url');
+      await Future.delayed(const Duration(milliseconds: 1500));
+      return {
+        'name': '마초 골지 헨리넥 셔츠',
+        'imageUrl': '',
+        'material': '코튼 100%',
+        'brand': '마초',
+        'category': 'TOP'
+      };
+    }
+
+    try {
+      final token = await getJwtToken();
+      
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/clothes/crawl'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'url': url}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      } else {
+        print('Web crawling failed with status: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Error during web crawling API call: $e');
+    }
+    return null;
   }
 }

@@ -1,0 +1,269 @@
+package com.wearly.domain.clothes.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wearly.domain.clothes.dto.response.ClothesAnalyzeResponse;
+import com.wearly.domain.clothes.entity.Category;
+import com.wearly.global.common.entity.Style;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.*;
+
+@Slf4j
+@Component
+public class GeminiApiClient {
+
+    private final WebClient webClient;
+    private final ObjectMapper objectMapper;
+
+    @Value("${gemini.api-key:}")
+    private String apiKey;
+
+    public GeminiApiClient(WebClient.Builder webClientBuilder, ObjectMapper objectMapper) {
+        this.webClient = webClientBuilder.build();
+        this.objectMapper = objectMapper;
+    }
+
+    public ClothesAnalyzeResponse analyzeClothingImage(byte[] imageBytes, String base64Image) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            log.warn("Gemini API key is not configured. Falling back to default mock analysis.");
+            return getMockAnalysis();
+        }
+
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey.trim();
+
+        // Construct request payload
+        Map<String, Object> requestBody = new HashMap<>();
+        
+        Map<String, Object> partText = new HashMap<>();
+        partText.put("text", "Identify the clothing item in this image and extract details. " +
+                "Respond strictly in JSON format matching this schema: " +
+                "{ " +
+                "\"category\": \"TOP\" or \"BOTTOM\" or \"OUTER\" or \"ONEPIECE\" or \"SHOES\" or \"BAG\" or \"ACCESSORY\", " +
+                "\"style\": \"CASUAL\" or \"MINIMAL\" or \"STREET\" or \"SPORTY\" or \"FORMAL\" or \"VINTAGE\", " +
+                "\"brand\": \"brand name (string, e.g. Uniqlo, divein) or null if not detected\", " +
+                "\"material\": \"material text (string, e.g. Cotton 100%, Denim 100%)\", " +
+                "\"thickness\": 1 (thin) or 2 (medium) or 3 (thick), " +
+                "\"cloValue\": 0.15 (thin/summer) or 0.45 (light/spring) or 0.65 (medium/autumn) or 1.0 (warm/winter) or 1.6 (thick/heavy winter), " +
+                "\"colorH\": dominant HSV color H value (integer, 0 to 360), " +
+                "\"colorS\": dominant HSV color S value (integer, 0 to 100), " +
+                "\"colorV\": dominant HSV color V value (integer, 0 to 100) " +
+                "}. Do not add any markdown block wrappers (like ```json) or explanation, just plain JSON string.");
+
+        Map<String, Object> partImage = new HashMap<>();
+        Map<String, String> inlineData = new HashMap<>();
+        inlineData.put("mimeType", "image/png");
+        inlineData.put("data", base64Image);
+        partImage.put("inlineData", inlineData);
+
+        List<Map<String, Object>> parts = Arrays.asList(partText, partImage);
+        
+        Map<String, Object> content = new HashMap<>();
+        content.put("parts", parts);
+        
+        requestBody.put("contents", Collections.singletonList(content));
+
+        // Enforce JSON output format
+        Map<String, String> generationConfig = new HashMap<>();
+        generationConfig.put("responseMimeType", "application/json");
+        requestBody.put("generationConfig", generationConfig);
+
+        try {
+            log.info("Sending request to Google Gemini API...");
+            String rawResponse = webClient.post()
+                    .uri(url)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            log.info("Gemini raw response: {}", rawResponse);
+            return parseGeminiResponse(rawResponse);
+        } catch (Exception e) {
+            log.error("Failed to analyze image with Gemini API, falling back to mock", e);
+            return getMockAnalysis();
+        }
+    }
+
+    private ClothesAnalyzeResponse parseGeminiResponse(String responseJson) {
+        try {
+            JsonNode root = objectMapper.readTree(responseJson);
+            String text = root.path("candidates")
+                    .path(0)
+                    .path("content")
+                    .path("parts")
+                    .path(0)
+                    .path("text")
+                    .asText();
+
+            log.info("Extracted text JSON from Gemini: {}", text);
+            String cleanText = text.trim();
+            if (cleanText.startsWith("```json")) {
+                cleanText = cleanText.substring(7);
+            } else if (cleanText.startsWith("```")) {
+                cleanText = cleanText.substring(3);
+            }
+            if (cleanText.endsWith("```")) {
+                cleanText = cleanText.substring(0, cleanText.length() - 3);
+            }
+            JsonNode data = objectMapper.readTree(cleanText.trim());
+
+            Category category = Category.valueOf(data.path("category").asText("TOP").toUpperCase());
+            Style style = Style.valueOf(data.path("style").asText("CASUAL").toUpperCase());
+            String brand = data.path("brand").isNull() ? null : data.path("brand").asText();
+            String material = data.path("material").asText("코튼 100%");
+            int thickness = data.path("thickness").asInt(2);
+            double cloValue = data.path("cloValue").asDouble(0.65);
+            int colorH = data.path("colorH").asInt(0);
+            int colorS = data.path("colorS").asInt(0);
+            int colorV = data.path("colorV").asInt(100);
+
+            return ClothesAnalyzeResponse.builder()
+                    .category(category)
+                    .style(style)
+                    .brand(brand)
+                    .material(material)
+                    .thickness(thickness)
+                    .cloValue(cloValue)
+                    .colorH(colorH)
+                    .colorS(colorS)
+                    .colorV(colorV)
+                    .build();
+        } catch (Exception e) {
+            log.error("Error parsing Gemini JSON response, falling back to mock", e);
+            return getMockAnalysis();
+        }
+    }
+    public String findProductUrl(String base64Image, String storeHint) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            return "https://macho707.com/product/%EC%BA%90%EC%8B%9C%EB%AF%B8%EC%96%B4-%EC%9A%B8-%EB%A8%B8%EC%8A%AC%ED%95%8F-%ED%97%A8%EB%A6%AC%EB%84%A5-%EB%8B%88%ED%8A%B8/204/";
+        }
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey.trim();
+        Map<String, Object> requestBody = new HashMap<>();
+        Map<String, Object> partText = new HashMap<>();
+        partText.put("text", "Find the exact product webpage URL for this clothing item. " +
+                "Hint: It is highly likely from the store " + storeHint + ". " +
+                "Respond ONLY with the URL string (e.g. https://macho707.com/product/...). Do not add any other text.");
+        Map<String, Object> partImage = new HashMap<>();
+        Map<String, String> inlineData = new HashMap<>();
+        inlineData.put("mimeType", "image/png");
+        inlineData.put("data", base64Image);
+        partImage.put("inlineData", inlineData);
+        requestBody.put("contents", Collections.singletonList(Collections.singletonMap("parts", Arrays.asList(partText, partImage))));
+
+        try {
+            log.info("Sending request to Gemini API to find URL...");
+            String rawResponse = webClient.post()
+                    .uri(url)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            JsonNode root = objectMapper.readTree(rawResponse);
+            String foundUrl = root.path("candidates").path(0).path("content").path("parts").path(0).path("text").asText().trim();
+            int httpIndex = foundUrl.indexOf("http");
+            if (httpIndex != -1) {
+                foundUrl = foundUrl.substring(httpIndex);
+                int spaceIndex = foundUrl.indexOf(" ");
+                int newlineIndex = foundUrl.indexOf("\n");
+                int endIndex = foundUrl.length();
+                if (spaceIndex != -1 && spaceIndex < endIndex) endIndex = spaceIndex;
+                if (newlineIndex != -1 && newlineIndex < endIndex) endIndex = newlineIndex;
+                
+                return foundUrl.substring(0, endIndex).trim();
+            }
+        } catch (Exception e) {
+            log.error("Error finding URL via Gemini", e);
+        }
+        return "https://macho707.com/product/%EC%BA%90%EC%8B%9C%EB%AF%B8%EC%96%B4-%EC%9A%B8-%EB%A8%B8%EC%8A%AC%ED%95%8F-%ED%97%A8%EB%A6%AC%EB%84%A5-%EB%8B%88%ED%8A%B8/204/"; // Fallback
+    }
+    private ClothesAnalyzeResponse getMockAnalysis() {
+        log.info("Returning Mock clothes analysis response.");
+        return ClothesAnalyzeResponse.builder()
+                .category(Category.TOP)
+                .style(Style.CASUAL)
+                .colorH(0)
+                .colorS(0)
+                .colorV(90) // greyish white
+                .brand("데모 브랜드")
+                .material("코튼 100%")
+                .thickness(2)
+                .cloValue(0.65)
+                .build();
+    }
+
+    public Map<String, String> analyzeCrawledText(String title, String bodyText) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            return null;
+        }
+
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey.trim();
+
+        if (bodyText != null && bodyText.length() > 6000) {
+            bodyText = bodyText.substring(0, 6000); // Limit tokens
+        }
+
+        Map<String, Object> requestBody = new HashMap<>();
+        Map<String, Object> partText = new HashMap<>();
+        partText.put("text", "Extract clothing product details from the following webpage title and text.\n" +
+                "Title: " + title + "\n" +
+                "Text: " + bodyText + "\n\n" +
+                "Respond strictly in JSON format matching this schema:\n" +
+                "{ \"brand\": \"Brand name extracted from title or text (e.g. 마초, MACHO)\", " +
+                "\"name\": \"Clean product name without brand (e.g. 캐시미어 울 머슬핏 헨리넥 니트)\", " +
+                "\"material\": \"Material or fabric information (e.g. 울 50% 아크릴 50%, 코튼 100%)\", " +
+                "\"fit\": \"Fit information (e.g. 머슬핏, 오버핏, 레귤러핏)\" }.\n" +
+                "If not found, use '정보 없음'. Do not add any markdown block wrappers, just plain JSON.");
+
+        requestBody.put("contents", Collections.singletonList(Collections.singletonMap("parts", Collections.singletonList(partText))));
+
+        Map<String, String> generationConfig = new HashMap<>();
+        generationConfig.put("responseMimeType", "application/json");
+        requestBody.put("generationConfig", generationConfig);
+
+        try {
+            log.info("Sending text analysis request to Gemini...");
+            String rawResponse = webClient.post()
+                    .uri(url)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            JsonNode root = objectMapper.readTree(rawResponse);
+            String text = root.path("candidates").path(0).path("content").path("parts").path(0).path("text").asText();
+            
+            // Clean markdown code blocks if Gemini ignores instructions
+            String cleanText = text.trim();
+            if (cleanText.startsWith("```json")) {
+                cleanText = cleanText.substring(7);
+            } else if (cleanText.startsWith("```")) {
+                cleanText = cleanText.substring(3);
+            }
+            if (cleanText.endsWith("```")) {
+                cleanText = cleanText.substring(0, cleanText.length() - 3);
+            }
+            cleanText = cleanText.trim();
+
+            JsonNode data = objectMapper.readTree(cleanText);
+
+            Map<String, String> result = new HashMap<>();
+            result.put("brand", data.path("brand").asText("정보 없음"));
+            result.put("name", data.path("name").asText("정보 없음"));
+            result.put("material", data.path("material").asText("정보 없음"));
+            result.put("fit", data.path("fit").asText("정보 없음"));
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to analyze crawled text with Gemini", e);
+            return null;
+        }
+    }
+}

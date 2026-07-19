@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:wearly/services/api_service.dart';
+import 'package:front/services/api_service.dart';
+import 'package:go_router/go_router.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -63,10 +64,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
 
     if (authenticated) {
-      // Navigate to Home and clear navigation stack (also resets URL query parameters in browser)
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      // Navigate to Closet Dashboard and clear navigation stack
+      context.go('/closet');
     } else {
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      context.go('/login');
     }
   }
 

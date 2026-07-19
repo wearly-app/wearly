@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:wearly/services/api_service.dart';
+import 'package:front/services/api_service.dart';
+import 'package:go_router/go_router.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,8 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (success) {
         if (!mounted) return;
-        // Navigate to Home screen and clear the navigation stack
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        // Navigate to Closet Dashboard and clear the navigation stack
+        context.go('/closet');
       } else {
         if (!mounted) return;
         // Commented out as requested:

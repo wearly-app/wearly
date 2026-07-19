@@ -91,7 +91,7 @@ public class OutfitService {
                 .stream()
                 .map(clothes -> OutfitClothesResponse.from(
                         clothes,
-                        s3ImageStorage.getUrl(clothes.getImageUrl())
+                        s3ImageStorage.getUrl(clothes.getImageKey())
                 ))
                 .toList();
 
@@ -116,7 +116,7 @@ public class OutfitService {
                         .map(OutfitItems::getClothes)
                         .map(clothes -> OutfitClothesResponse.from(
                                 clothes,
-                                s3ImageStorage.getUrl(clothes.getImageUrl())
+                                s3ImageStorage.getUrl(clothes.getImageKey())
                         ))
                         .toList();
 
@@ -181,7 +181,7 @@ public class OutfitService {
                                             OutfitClothesResponse.from(
                                                     clothes,
                                                     s3ImageStorage.getUrl(
-                                                            clothes.getImageUrl()
+                                                            clothes.getImageKey()
                                                     )
                                             )
                                     )
@@ -236,7 +236,7 @@ public class OutfitService {
                         .map(OutfitItems::getClothes)
                         .map(clothes -> OutfitClothesResponse.from(
                                 clothes,
-                                s3ImageStorage.getUrl(clothes.getImageUrl())
+                                s3ImageStorage.getUrl(clothes.getImageKey())
                         ))
                         .toList();
 

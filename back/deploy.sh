@@ -60,11 +60,11 @@ docker pull "$ECR_IMAGE"
 log "INFO" "Pull latest rembg image"
 docker pull "$REMBG_ECR_IMAGE"
 
-log "INFO" "Recreate rembg container"
+log "INFO" "Ensure rembg container is running with the latest image"
 docker compose \
   --env-file prod.env \
   -f docker-compose-prod.yml \
-  up -d --no-deps --force-recreate rembg-service
+  up -d --no-deps rembg-service
 
 log "INFO" "Wait for rembg service health check"
 for attempt in $(seq 1 60); do

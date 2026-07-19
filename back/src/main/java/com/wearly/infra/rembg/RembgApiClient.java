@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
@@ -25,6 +26,7 @@ import java.time.Duration;
 public class RembgApiClient {
 
     private static final String REMOVE_BACKGROUND_URI = "/remove-background";
+    private static final int MAX_RESPONSE_SIZE = 20 * 1024 * 1024;
 
     private final WebClient webClient;
 
@@ -39,9 +41,16 @@ public class RembgApiClient {
                         .addHandlerLast(new ReadTimeoutHandler(60))
                         .addHandlerLast(new WriteTimeoutHandler(60)));
 
+        ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
+                .codecs(configurer -> configurer
+                        .defaultCodecs()
+                        .maxInMemorySize(MAX_RESPONSE_SIZE))
+                .build();
+
         this.webClient = webClientBuilder
                 .baseUrl(rembgApiProperties.getBaseUrl())
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .exchangeStrategies(exchangeStrategies)
                 .build();
     }
 

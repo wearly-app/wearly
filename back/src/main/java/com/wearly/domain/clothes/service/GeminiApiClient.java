@@ -24,6 +24,9 @@ public class GeminiApiClient {
     @Value("${gemini.api-key:}")
     private String apiKey;
 
+    @Value("${gemini.model:gemini-3.5-flash}")
+    private String model;
+
     public GeminiApiClient(WebClient.Builder webClientBuilder, ObjectMapper objectMapper) {
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
@@ -35,7 +38,7 @@ public class GeminiApiClient {
             return getMockAnalysis();
         }
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey.trim();
+        String url = createGenerateContentUrl();
 
         // Construct request payload
         Map<String, Object> requestBody = new HashMap<>();
@@ -144,7 +147,7 @@ public class GeminiApiClient {
         if (apiKey == null || apiKey.isEmpty()) {
             return "https://macho707.com/product/%EC%BA%90%EC%8B%9C%EB%AF%B8%EC%96%B4-%EC%9A%B8-%EB%A8%B8%EC%8A%AC%ED%95%8F-%ED%97%A8%EB%A6%AC%EB%84%A5-%EB%8B%88%ED%8A%B8/204/";
         }
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey.trim();
+        String url = createGenerateContentUrl();
         Map<String, Object> requestBody = new HashMap<>();
         Map<String, Object> partText = new HashMap<>();
         partText.put("text", "Find the exact product webpage URL for this clothing item " +
@@ -207,7 +210,7 @@ public class GeminiApiClient {
             return null;
         }
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey.trim();
+        String url = createGenerateContentUrl();
 
         if (bodyText != null && bodyText.length() > 6000) {
             bodyText = bodyText.substring(0, 6000); // Limit tokens
@@ -268,5 +271,12 @@ public class GeminiApiClient {
             log.error("Failed to analyze crawled text with Gemini", e);
             return null;
         }
+    }
+
+    private String createGenerateContentUrl() {
+        return "https://generativelanguage.googleapis.com/v1beta/models/"
+                + model.trim()
+                + ":generateContent?key="
+                + apiKey.trim();
     }
 }

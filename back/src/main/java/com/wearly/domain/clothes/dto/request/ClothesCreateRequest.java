@@ -2,6 +2,7 @@ package com.wearly.domain.clothes.dto.request;
 
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.global.common.entity.Style;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 
@@ -13,6 +14,7 @@ public class ClothesCreateRequest {
 
     private Style style;
 
+    @NotBlank
     private String imageKey;
 
     private Integer colorH;

@@ -41,8 +41,8 @@ public class Clothes extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private Style style;
 
-    @Column(length = 255)
-    private String imageUrl;
+    @Column(name = "image_key", length = 255)
+    private String imageKey;
 
     @Column(columnDefinition = "SMALLINT")
     private Integer colorH;
@@ -74,7 +74,7 @@ public class Clothes extends BaseEntity {
     public void update(
             Category category,
             Style style,
-            String imageUrl,
+            String imageKey,
             Integer colorH,
             Integer colorS,
             Integer colorV,
@@ -89,8 +89,8 @@ public class Clothes extends BaseEntity {
         if (style != null) {
             this.style = style;
         }
-        if (imageUrl != null) {
-            this.imageUrl = imageUrl;
+        if (imageKey != null) {
+            this.imageKey = imageKey;
         }
         if (colorH != null) {
             this.colorH = colorH;
@@ -119,7 +119,7 @@ public class Clothes extends BaseEntity {
             User user,
             Category category,
             Style style,
-            String imageUrl,
+            String imageKey,
             Integer colorH,
             Integer colorS,
             Integer colorV,
@@ -132,7 +132,7 @@ public class Clothes extends BaseEntity {
         clothes.user = user;
         clothes.category = category;
         clothes.style = style;
-        clothes.imageUrl = imageUrl;
+        clothes.imageKey = imageKey;
         clothes.colorH = colorH;
         clothes.colorS = colorS;
         clothes.colorV = colorV;

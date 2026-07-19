@@ -8,6 +8,7 @@ import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:front/config/app_config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:front/features/user/closet/models/recommendation_response.dart';
+import 'package:front/features/user/closet/models/clothes_response.dart';
 
 // Helper to generate a PKCE-compliant secure random code verifier
 String _generateCodeVerifier() {
@@ -296,6 +297,93 @@ class ApiService {
       );
     } catch (e) {
       print('Error requesting recommendations: $e');
+    }
+    return null;
+  }
+
+  /// Get every clothing item owned by the authenticated user.
+  Future<List<ClothingApiItem>?> getAllClothes({
+    String? category,
+    String? style,
+  }) async {
+    try {
+      final token = await getJwtToken();
+      if (token == null) {
+        print('Clothes request skipped: JWT token not found.');
+        return null;
+      }
+
+      const pageSize = 50;
+      var pageNumber = 0;
+      final items = <ClothingApiItem>[];
+
+      while (true) {
+        final query = <String, String>{
+          'page': pageNumber.toString(),
+          'size': pageSize.toString(),
+          if (category != null) 'category': category,
+          if (style != null) 'style': style,
+        };
+        final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/clothes').replace(
+          queryParameters: query,
+        );
+        final response = await http.get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 8));
+
+        if (response.statusCode != 200) {
+          print(
+            'Clothes request failed: '
+            '${response.statusCode} - ${response.body}',
+          );
+          return null;
+        }
+
+        final json = jsonDecode(utf8.decode(response.bodyBytes));
+        final page = ClothingPageResponse.fromJson(
+          json as Map<String, dynamic>,
+        );
+        items.addAll(page.content);
+        if (!page.hasNext) break;
+        pageNumber++;
+      }
+
+      return items;
+    } catch (e) {
+      print('Error requesting clothes: $e');
+      return null;
+    }
+  }
+
+  /// Get one clothing item owned by the authenticated user.
+  Future<ClothingApiItem?> getClothingDetail(int id) async {
+    try {
+      final token = await getJwtToken();
+      if (token == null) return null;
+
+      final response = await http.get(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/clothes/$id'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(utf8.decode(response.bodyBytes));
+        return ClothingApiItem.fromJson(json as Map<String, dynamic>);
+      }
+
+      print(
+        'Clothing detail request failed: '
+        '${response.statusCode} - ${response.body}',
+      );
+    } catch (e) {
+      print('Error requesting clothing detail: $e');
     }
     return null;
   }

@@ -34,6 +34,9 @@ public class Clothes extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(length = 100)
+    private String name;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Category category;
@@ -72,6 +75,7 @@ public class Clothes extends BaseEntity {
     private LocalDateTime deletedAt;
 
     public void update(
+            String name,
             Category category,
             Style style,
             String imageKey,
@@ -83,6 +87,9 @@ public class Clothes extends BaseEntity {
             Integer thickness,
             Double cloValue
     ) {
+        if (name != null) {
+            this.name = name;
+        }
         if (category != null) {
             this.category = category;
         }
@@ -117,6 +124,7 @@ public class Clothes extends BaseEntity {
 
     public static Clothes create(
             User user,
+            String name,
             Category category,
             Style style,
             String imageKey,
@@ -130,6 +138,7 @@ public class Clothes extends BaseEntity {
     ) {
         Clothes clothes = new Clothes();
         clothes.user = user;
+        clothes.name = name;
         clothes.category = category;
         clothes.style = style;
         clothes.imageKey = imageKey;

@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: backend-deploy
+  group: wearly-ec2-deploy
   cancel-in-progress: false
 
 env:
@@ -54,7 +54,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Docker image
+      - name: Build and push Spring Docker image
         working-directory: back
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -87,5 +87,10 @@ jobs:
           ssh \
             -i ~/.ssh/id_deploy \
             -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
             "${EC2_USER}@${EC2_HOST}" \
-            "cd /home/ubuntu/app/wearly/back && ./deploy.sh"
+            "cd /home/ubuntu/app/wearly && \
+             git fetch origin backend && \
+             git switch backend && \
+             git pull --ff-only origin backend && \
+             bash ./back/deploy-app.sh"

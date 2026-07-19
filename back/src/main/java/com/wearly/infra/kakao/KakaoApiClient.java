@@ -74,11 +74,11 @@ public class KakaoApiClient {
                 .retrieve()
                 .onStatus(
                         HttpStatusCode::is4xxClientError,
-                        clientResponse -> Mono.error(new AuthException(String.valueOf(AuthErrorCode.INVALID_KAKAO_ACCESS_TOKEN)))
+                        clientResponse -> Mono.error(new AuthException(AuthErrorCode.INVALID_KAKAO_ACCESS_TOKEN))
                 )
                 .onStatus(
                         HttpStatusCode::is5xxServerError,
-                        clientResponse -> Mono.error(new AuthException(String.valueOf(AuthErrorCode.KAKAO_SERVER_ERROR)))
+                        clientResponse -> Mono.error(new AuthException(AuthErrorCode.KAKAO_SERVER_ERROR))
                 )
                 .bodyToMono(com.wearly.auth.dto.response.KakaoTokenResponse.class)
                 .block();

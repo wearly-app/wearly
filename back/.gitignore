@@ -38,3 +38,5 @@ out/
 
 # Local Environment Variables
 .env
+deploy.env
+prod.env

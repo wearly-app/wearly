@@ -7,12 +7,17 @@ import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:front/config/app_config.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:front/features/user/closet/models/recommendation_response.dart';
 
 // Helper to generate a PKCE-compliant secure random code verifier
 String _generateCodeVerifier() {
   final Random random = Random.secure();
   final List<int> values = List<int>.generate(32, (i) => random.nextInt(256));
-  return base64Url.encode(values).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_');
+  return base64Url
+      .encode(values)
+      .replaceAll('=', '')
+      .replaceAll('+', '-')
+      .replaceAll('/', '_');
 }
 
 class UserModel {
@@ -57,11 +62,11 @@ class ApiService {
         // 1. Web Flow: Generate code verifier and redirect URI for PKCE
         final String redirectUri = '${Uri.base.origin}/auth.html';
         final String codeVerifier = _generateCodeVerifier();
-        
+
         // Save the code verifier to secure storage so we can retrieve it after redirect!
         await _storage.write(key: 'wearly_code_verifier', value: codeVerifier);
         print('Web redirect URI: $redirectUri');
-        
+
         // This redirects the page, so execution will stop here as the page reloads.
         await AuthCodeClient.instance.authorize(
           redirectUri: redirectUri,
@@ -165,7 +170,8 @@ class ApiService {
             return true;
           }
         } else {
-          print('Backend redirect auth failed with status: ${response.statusCode}');
+          print(
+              'Backend redirect auth failed with status: ${response.statusCode}');
         }
       } catch (e) {
         print('Error handling Web redirect code: $e');
@@ -244,6 +250,56 @@ class ApiService {
     return await _storage.read(key: _jwtKey);
   }
 
+  /// Get real-time outfit recommendations for the authenticated user.
+  Future<RecommendationApiResponse?> getRecommendations({
+    required double latitude,
+    required double longitude,
+    required String style,
+    int limit = 3,
+  }) async {
+    try {
+      final token = await getJwtToken();
+      if (token == null) {
+        print('Recommendation request skipped: JWT token not found.');
+        return null;
+      }
+
+      final uri = Uri.parse(
+        '${AppConfig.apiBaseUrl}/api/recommendations',
+      ).replace(
+        queryParameters: {
+          'latitude': latitude.toString(),
+          'longitude': longitude.toString(),
+          'style': style,
+          'limit': limit.toString(),
+        },
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(utf8.decode(response.bodyBytes));
+        return RecommendationApiResponse.fromJson(
+          json as Map<String, dynamic>,
+        );
+      }
+
+      print(
+        'Recommendation request failed: '
+        '${response.statusCode} - ${response.body}',
+      );
+    } catch (e) {
+      print('Error requesting recommendations: $e');
+    }
+    return null;
+  }
+
   /// Clear token locally
   Future<void> logoutLocally() async {
     await _storage.delete(key: _jwtKey);
@@ -259,10 +315,11 @@ class ApiService {
   Future<Map<String, dynamic>?> analyzeClothingImage(XFile imageFile) async {
     if (AppConfig.useMockApi) {
       print('Using Mock API for analyzeClothingImage');
-      await Future.delayed(const Duration(seconds: 2)); // Simulate network delay
+      await Future.delayed(
+          const Duration(seconds: 2)); // Simulate network delay
       final bytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(bytes);
-      
+
       // 마초(macho707) 쇼핑몰 시연용 Mock 데이터
       return {
         'imageUrl': 'data:image/png;base64,$base64Image',
@@ -301,7 +358,8 @@ class ApiService {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        return jsonDecode(utf8.decode(response.bodyBytes))
+            as Map<String, dynamic>;
       } else {
         print('Image analysis failed with status: ${response.statusCode}');
       }
@@ -335,7 +393,8 @@ class ApiService {
       if (response.statusCode == 201) {
         return true;
       } else {
-        print('Failed to create clothing item: ${response.statusCode} - ${response.body}');
+        print(
+            'Failed to create clothing item: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('Error creating clothing item: $e');
@@ -359,7 +418,7 @@ class ApiService {
 
     try {
       final token = await getJwtToken();
-      
+
       final response = await http.post(
         Uri.parse('${AppConfig.apiBaseUrl}/api/clothes/crawl'),
         headers: {
@@ -370,9 +429,11 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        return jsonDecode(utf8.decode(response.bodyBytes))
+            as Map<String, dynamic>;
       } else {
-        print('Web crawling failed with status: ${response.statusCode} - ${response.body}');
+        print(
+            'Web crawling failed with status: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('Error during web crawling API call: $e');

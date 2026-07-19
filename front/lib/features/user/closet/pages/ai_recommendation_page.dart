@@ -4,6 +4,7 @@ import 'package:front/features/user/closet/models/clothing_item.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
 import 'package:front/features/user/closet/services/recommendation_service.dart';
 import 'package:front/features/user/closet/pages/codi_maker_page.dart';
+import 'package:front/services/api_service.dart';
 
 // ──────────────────────────────────────────────
 // 1. AI Loading Page (Full page transition)
@@ -21,7 +22,7 @@ class _AiLoadingPageState extends State<AiLoadingPage> {
   int _step = 0;
   Timer? _timer;
   final List<String> _loadingTexts = const [
-    "시연용 기온 및 날씨 조건 분석 중...",
+    "실시간 기온 및 날씨 조건 요청 중...",
     "옷장 속 장기 미착용 의류 스캔 중...",
     "기온 및 스타일 기반 코디 매칭 중...",
   ];
@@ -169,14 +170,22 @@ class RecommendationResultPage extends StatefulWidget {
 
 class _RecommendationResultPageState extends State<RecommendationResultPage> {
   static const double _demoTemperature = 28;
+  static const double _demoLatitude = 37.2636;
+  static const double _demoLongitude = 127.0286;
   final RecommendationService _recommendationService =
       const RecommendationService();
+  final ApiService _apiService = ApiService();
   bool _isMainLoading = false;
   bool _isBottomLoading = false;
+  bool _isApiLoading = true;
+  bool _usingServerRecommendations = false;
   int _mainIndex = 0;
   int _bottomIndex = 0;
-  late final List<ClothingRecommendation> _mainRecommendations;
-  late final List<ClothingRecommendation> _bottomRecommendations;
+  double _currentTemperature = _demoTemperature;
+  String _weatherCondition = '⛅';
+  String? _apiErrorMessage;
+  late List<ClothingRecommendation> _mainRecommendations;
+  late List<ClothingRecommendation> _bottomRecommendations;
 
   @override
   void initState() {
@@ -194,6 +203,144 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
       temperature: _demoTemperature,
       selectedStyle: widget.selectedStyle,
     );
+    _loadServerRecommendations();
+  }
+
+  Future<void> _loadServerRecommendations() async {
+    final response = await _apiService.getRecommendations(
+      latitude: _demoLatitude,
+      longitude: _demoLongitude,
+      style: _styleApiValue(widget.selectedStyle),
+    );
+
+    if (!mounted) return;
+    if (response == null) {
+      setState(() {
+        _isApiLoading = false;
+        _apiErrorMessage = '서버 추천을 불러오지 못해 로컬 추천을 표시합니다.';
+      });
+      return;
+    }
+    if (response.recommendations.isEmpty) {
+      setState(() {
+        _isApiLoading = false;
+        _currentTemperature = response.weather.temperature;
+        _weatherCondition = _weatherLabel(response.weather.condition);
+        _apiErrorMessage = '추천 API 연결은 성공했지만 서버 추천 결과가 아직 비어 있어 '
+            '로컬 추천을 표시합니다.';
+      });
+      return;
+    }
+
+    final tops = <String, ClothingRecommendation>{};
+    final bottoms = <String, ClothingRecommendation>{};
+
+    for (final outfit in response.recommendations) {
+      for (final recommended in outfit.clothes) {
+        final item = recommended.toClothingItem();
+        final neglectedDays = item.lastWornDate == null
+            ? (90 - (item.wearCount * 12)).clamp(30, 90)
+            : DateTime.now()
+                .difference(item.lastWornDate!)
+                .inDays
+                .clamp(0, 3650);
+        final recommendation = ClothingRecommendation(
+          item: item,
+          totalScore: outfit.score,
+          neglectedDays: neglectedDays,
+          neglectScore: 0,
+          weatherScore: 0,
+          styleScore: 0,
+        );
+        final target = item.category == '상의'
+            ? tops
+            : item.category == '하의'
+                ? bottoms
+                : null;
+        if (target != null &&
+            (target[item.id] == null ||
+                target[item.id]!.totalScore < recommendation.totalScore)) {
+          target[item.id] = recommendation;
+        }
+      }
+    }
+
+    final rankedTops = tops.values.toList()
+      ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
+    final rankedBottoms = bottoms.values.toList()
+      ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
+
+    if (rankedTops.isEmpty || rankedBottoms.isEmpty) {
+      setState(() {
+        _isApiLoading = false;
+        _apiErrorMessage = '서버 응답에 상의 또는 하의가 없어 로컬 추천을 표시합니다.';
+      });
+      return;
+    }
+
+    setState(() {
+      _mainRecommendations = rankedTops;
+      _bottomRecommendations = rankedBottoms;
+      _mainIndex = 0;
+      _bottomIndex = 0;
+      _currentTemperature = response.weather.temperature;
+      _weatherCondition = _weatherLabel(response.weather.condition);
+      _usingServerRecommendations = true;
+      _isApiLoading = false;
+      _apiErrorMessage = null;
+    });
+  }
+
+  String _styleApiValue(String style) {
+    const values = {
+      '캐주얼': 'CASUAL',
+      '미니멀': 'MINIMAL',
+      '스트릿': 'STREET',
+      '스포티': 'SPORTY',
+      '격식': 'FORMAL',
+      '아메카지': 'VINTAGE',
+      '데이트': 'CASUAL',
+    };
+    return values[style] ?? 'CASUAL';
+  }
+
+  String _weatherLabel(String condition) {
+    const labels = {
+      'CLEAR': '☀️',
+      'CLOUDS': '⛅',
+      'RAIN': '🌧️',
+      'SNOW': '❄️',
+      'THUNDERSTORM': '⛈️',
+      'DRIZZLE': '🌦️',
+      'MIST': '🌫️',
+      'FOG': '🌫️',
+    };
+    return labels[condition] ?? '🌤️';
+  }
+
+  String _recommendationReport(
+    ClothingRecommendation main,
+    ClothingRecommendation bottom,
+  ) {
+    if (_usingServerRecommendations) {
+      return '서버 실시간 추천 · 현재 기온 '
+          '(${_currentTemperature.toStringAsFixed(1)}°C $_weatherCondition)과 '
+          '[${widget.selectedStyle}] 스타일을 반영했습니다.\n'
+          '${main.item.name}: 방치 약 ${main.neglectedDays}일 · 서버 추천 점수 '
+          '${main.totalScore.toStringAsFixed(0)}점\n'
+          '${bottom.item.name}: 방치 약 ${bottom.neglectedDays}일 · 서버 추천 점수 '
+          '${bottom.totalScore.toStringAsFixed(0)}점';
+    }
+
+    return '로컬 시연 추천 · 기온(${_demoTemperature.toInt()}°C ⛅)과 '
+        '[${widget.selectedStyle}] 스타일을 반영했습니다.\n'
+        '${main.item.name}: 방치 ${main.neglectedDays}일 · 방치 '
+        '${main.neglectScore.toStringAsFixed(0)} + 날씨 '
+        '${main.weatherScore.toStringAsFixed(0)} + 스타일 '
+        '${main.styleScore.toStringAsFixed(0)} = '
+        '${main.totalScore.toStringAsFixed(0)}점\n'
+        '${bottom.item.name}: 방치 ${bottom.neglectedDays}일 · 총 '
+        '${bottom.totalScore.toStringAsFixed(0)}점';
   }
 
   void _triggerMainRescueTargetSwap() {
@@ -432,12 +579,12 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.lightbulb_outline,
+                        const Icon(Icons.lightbulb_outline,
                             size: 14, color: Colors.indigo),
-                        SizedBox(width: 5),
-                        Text(
+                        const SizedBox(width: 5),
+                        const Text(
                           '💡 AI 스타일링 리포트',
                           style: TextStyle(
                             fontSize: 11,
@@ -445,11 +592,28 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                             color: Colors.indigo,
                           ),
                         ),
+                        const Spacer(),
+                        Text(
+                          _isApiLoading
+                              ? '서버 연결 중'
+                              : _usingServerRecommendations
+                                  ? '서버 추천'
+                                  : '로컬 추천',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: _usingServerRecommendations
+                                ? Colors.green.shade700
+                                : Colors.orange.shade700,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '시연용 기온(${_demoTemperature.toInt()}°C ⛅)과 선택하신 [${widget.selectedStyle}] 스타일을 반영했습니다.\n${currentMain.name}: 방치 ${currentMainRecommendation.neglectedDays}일 · 방치 ${currentMainRecommendation.neglectScore.toStringAsFixed(0)} + 날씨 ${currentMainRecommendation.weatherScore.toStringAsFixed(0)} + 스타일 ${currentMainRecommendation.styleScore.toStringAsFixed(0)} = ${currentMainRecommendation.totalScore.toStringAsFixed(0)}점\n${currentBottom.name}: 방치 ${currentBottomRecommendation.neglectedDays}일 · 총 ${currentBottomRecommendation.totalScore.toStringAsFixed(0)}점',
+                      _isApiLoading
+                          ? '서버 추천 API를 요청하고 있습니다. 응답 전까지 로컬 추천을 표시합니다.'
+                          : '${_apiErrorMessage == null ? '' : '$_apiErrorMessage\n'}${_recommendationReport(currentMainRecommendation, currentBottomRecommendation)}',
                       style: const TextStyle(
                         fontSize: 10,
                         height: 1.4,
@@ -590,6 +754,12 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
   Widget _buildGarmentImage(ClothingItem item) {
     if (item.imageBytes != null) {
       return Image.memory(item.imageBytes!, fit: BoxFit.contain);
+    } else if (item.imageUrl?.isNotEmpty == true) {
+      return Image.network(
+        item.imageUrl!,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => _buildFallbackGarment(item),
+      );
     } else if (item.assetPath != null) {
       return Image.asset(
         item.assetPath!,

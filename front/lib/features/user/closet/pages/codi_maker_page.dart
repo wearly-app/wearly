@@ -267,19 +267,29 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                     child: item.clothing.imageBytes != null
                         ? Image.memory(item.clothing.imageBytes!,
                             fit: BoxFit.contain)
-                        : item.clothing.assetPath != null
-                            ? Image.asset(item.clothing.assetPath!,
-                                fit: BoxFit.contain)
-                            : Container(
-                                decoration: BoxDecoration(
-                                  color: item.clothing.fallbackColor
-                                      .withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(8),
+                        : item.clothing.imageUrl?.isNotEmpty == true
+                            ? Image.network(
+                                item.clothing.imageUrl!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  item.clothing.fallbackIcon,
+                                  size: baseSize * item.scale * 0.5,
+                                  color: item.clothing.fallbackColor,
                                 ),
-                                child: Icon(item.clothing.fallbackIcon,
-                                    size: baseSize * item.scale * 0.5,
-                                    color: item.clothing.fallbackColor),
-                              ),
+                              )
+                            : item.clothing.assetPath != null
+                                ? Image.asset(item.clothing.assetPath!,
+                                    fit: BoxFit.contain)
+                                : Container(
+                                    decoration: BoxDecoration(
+                                      color: item.clothing.fallbackColor
+                                          .withValues(alpha: 0.3),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(item.clothing.fallbackIcon,
+                                        size: baseSize * item.scale * 0.5,
+                                        color: item.clothing.fallbackColor),
+                                  ),
                   ),
                 ),
               ),
@@ -429,6 +439,7 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 if (item.imageBytes != null ||
+                                    item.imageUrl?.isNotEmpty == true ||
                                     item.assetPath != null)
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(6),
@@ -438,8 +449,18 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                                       child: item.imageBytes != null
                                           ? Image.memory(item.imageBytes!,
                                               fit: BoxFit.cover)
-                                          : Image.asset(item.assetPath!,
-                                              fit: BoxFit.cover),
+                                          : item.imageUrl?.isNotEmpty == true
+                                              ? Image.network(
+                                                  item.imageUrl!,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      Icon(
+                                                    item.fallbackIcon,
+                                                    color: item.fallbackColor,
+                                                  ),
+                                                )
+                                              : Image.asset(item.assetPath!,
+                                                  fit: BoxFit.cover),
                                     ),
                                   )
                                 else

@@ -13,6 +13,7 @@ import java.time.LocalDate;
 public class RecommendationClothesResponse {
 
     private Long id;
+    private String name;
     private Category category;
     private Style style;
     private String imageUrl;
@@ -29,6 +30,7 @@ public class RecommendationClothesResponse {
     ) {
         return RecommendationClothesResponse.builder()
                 .id(clothes.getId())
+                .name(clothes.getName())
                 .category(clothes.getCategory())
                 .style(clothes.getStyle())
                 .imageUrl(imageUrl)

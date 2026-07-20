@@ -40,6 +40,7 @@ public class ClothesService {
 
         Clothes clothes = Clothes.create(
                 user,
+                request.getName(),
                 request.getCategory(),
                 request.getStyle(),
                 request.getImageKey(),
@@ -53,7 +54,7 @@ public class ClothesService {
         );
 
         Clothes savedClothes = clothesRepository.save(clothes);
-        String imageUrl = s3ImageStorage.getUrl(savedClothes.getImageUrl());
+        String imageUrl = s3ImageStorage.getUrl(savedClothes.getImageKey());
 
         return ClothesResponse.from(clothes, imageUrl);
     }
@@ -79,7 +80,7 @@ public class ClothesService {
         );
 
         List<ClothesResponse> content = clothesSlice.getContent().stream()
-                .map(c -> ClothesResponse.from(c, s3ImageStorage.getUrl(c.getImageUrl())))
+                .map(c -> ClothesResponse.from(c, s3ImageStorage.getUrl(c.getImageKey())))
                 .toList();
 
         return SliceResponse.of(content, clothesSlice);
@@ -87,7 +88,7 @@ public class ClothesService {
 
     public ClothesResponse getClothes(Long userId, Long clothesId) {
         Clothes clothes = getClothesByIdAndUserId(clothesId, userId);
-        String imageUrl = s3ImageStorage.getUrl(clothes.getImageUrl());
+        String imageUrl = s3ImageStorage.getUrl(clothes.getImageKey());
         return ClothesResponse.from(clothes, imageUrl);
     }
 
@@ -96,6 +97,7 @@ public class ClothesService {
         Clothes clothes = getClothesByIdAndUserId(clothesId, userId);
 
         clothes.update(
+                request.getName(),
                 request.getCategory(),
                 request.getStyle(),
                 request.getImageKey(),
@@ -108,7 +110,7 @@ public class ClothesService {
                 request.getCloValue()
         );
 
-        String imageUrl = s3ImageStorage.getUrl(clothes.getImageUrl());
+        String imageUrl = s3ImageStorage.getUrl(clothes.getImageKey());
 
         return ClothesResponse.from(clothes, imageUrl);
     }

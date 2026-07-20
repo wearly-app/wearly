@@ -10,6 +10,7 @@ import lombok.Getter;
 public class OutfitClothesResponse {
 
     private Long id;
+    private String name;
     private Category category;
     private String imageUrl;
     private String brand;
@@ -17,6 +18,7 @@ public class OutfitClothesResponse {
     public static OutfitClothesResponse from(Clothes clothes, String imageUrl) {
         return OutfitClothesResponse.builder()
                 .id(clothes.getId())
+                .name(clothes.getName())
                 .category(clothes.getCategory())
                 .imageUrl(imageUrl)
                 .brand(clothes.getBrand())

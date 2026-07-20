@@ -2,10 +2,14 @@ package com.wearly.domain.clothes.dto.request;
 
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.global.common.entity.Style;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
 @Getter
 public class ClothesUpdateRequest {
+
+    @Size(max = 100)
+    private String name;
 
     private Category category;
 

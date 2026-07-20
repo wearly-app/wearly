@@ -34,6 +34,9 @@ public class Clothes extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(length = 100)
+    private String name;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Category category;
@@ -41,8 +44,8 @@ public class Clothes extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private Style style;
 
-    @Column(length = 255)
-    private String imageUrl;
+    @Column(name = "image_key", length = 255)
+    private String imageKey;
 
     @Column(columnDefinition = "SMALLINT")
     private Integer colorH;
@@ -72,9 +75,10 @@ public class Clothes extends BaseEntity {
     private LocalDateTime deletedAt;
 
     public void update(
+            String name,
             Category category,
             Style style,
-            String imageUrl,
+            String imageKey,
             Integer colorH,
             Integer colorS,
             Integer colorV,
@@ -83,14 +87,17 @@ public class Clothes extends BaseEntity {
             Integer thickness,
             Double cloValue
     ) {
+        if (name != null) {
+            this.name = name;
+        }
         if (category != null) {
             this.category = category;
         }
         if (style != null) {
             this.style = style;
         }
-        if (imageUrl != null) {
-            this.imageUrl = imageUrl;
+        if (imageKey != null) {
+            this.imageKey = imageKey;
         }
         if (colorH != null) {
             this.colorH = colorH;
@@ -117,9 +124,10 @@ public class Clothes extends BaseEntity {
 
     public static Clothes create(
             User user,
+            String name,
             Category category,
             Style style,
-            String imageUrl,
+            String imageKey,
             Integer colorH,
             Integer colorS,
             Integer colorV,
@@ -130,9 +138,10 @@ public class Clothes extends BaseEntity {
     ) {
         Clothes clothes = new Clothes();
         clothes.user = user;
+        clothes.name = name;
         clothes.category = category;
         clothes.style = style;
-        clothes.imageUrl = imageUrl;
+        clothes.imageKey = imageKey;
         clothes.colorH = colorH;
         clothes.colorS = colorS;
         clothes.colorV = colorV;

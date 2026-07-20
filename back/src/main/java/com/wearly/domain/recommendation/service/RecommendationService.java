@@ -211,7 +211,7 @@ public class RecommendationService {
     }
 
     private String imageUrlOf(Clothes clothes) {
-        String imageKey = clothes.getImageUrl();
+        String imageKey = clothes.getImageKey();
         if (imageKey == null || imageKey.isBlank()) {
             return null;
         }

@@ -43,6 +43,7 @@ services:
       WEATHER_API_KEY: ${WEATHER_API_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       REMBG_API_BASE_URL: http://rembg-service:8000
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
     networks:
       - wearly-network
 

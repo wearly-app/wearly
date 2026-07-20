@@ -41,10 +41,26 @@ export ECR_IMAGE
 export REMBG_ECR_IMAGE
 
 log "INFO" "Login to ECR"
-timeout 30 aws ecr get-login-password --region "$AWS_REGION" |
-  timeout 30 docker login \
+
+ECR_PASSWORD="$(
+  env \
+    -u AWS_ACCESS_KEY_ID \
+    -u AWS_SECRET_ACCESS_KEY \
+    -u AWS_SESSION_TOKEN \
+    timeout 60 aws ecr get-login-password \
+      --region "$AWS_REGION"
+)" || fail "Failed to get ECR login password using EC2 IAM role"
+
+[[ -n "$ECR_PASSWORD" ]] ||
+  fail "ECR login password is empty"
+
+printf '%s' "$ECR_PASSWORD" |
+  timeout 60 docker login \
     --username AWS \
-    --password-stdin "$ECR_REGISTRY"
+    --password-stdin "$ECR_REGISTRY" ||
+  fail "Failed to login to ECR"
+
+unset ECR_PASSWORD
 
 log "INFO" "Pull latest application image"
 timeout 180 docker pull "$ECR_IMAGE"

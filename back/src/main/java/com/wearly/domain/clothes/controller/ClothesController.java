@@ -4,7 +4,6 @@ import com.wearly.domain.clothes.dto.request.ClothesCreateRequest;
 import com.wearly.domain.clothes.dto.request.ClothesUpdateRequest;
 import com.wearly.domain.clothes.dto.response.ClothesAnalyzeResponse;
 import com.wearly.domain.clothes.dto.response.ClothesResponse;
-import com.wearly.domain.clothes.dto.response.ClothesThermalAnalysis;
 import com.wearly.domain.clothes.dto.response.ClothesWearHistoryResponse;
 import com.wearly.domain.clothes.dto.response.ProductSearchCandidate;
 import com.wearly.domain.clothes.entity.Category;
@@ -44,7 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import java.awt.Color;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.util.Base64;
@@ -139,23 +138,6 @@ public class ClothesController {
                     if (crawledMaterial != null
                             && !crawledMaterial.isBlank()) {
                         material = crawledMaterial;
-
-                        ClothesThermalAnalysis thermalAnalysis =
-                                geminiApiClient.refineThermalValues(
-                                        analyzedResponse.getCategory(),
-                                        name,
-                                        material,
-                                        crawledResult.get("bodyText"),
-                                        finalThickness,
-                                        finalCloValue
-                                );
-
-                        if (thermalAnalysis != null) {
-                            finalThickness =
-                                    thermalAnalysis.thickness();
-                            finalCloValue =
-                                    thermalAnalysis.cloValue();
-                        }
                     }
                 }
             }

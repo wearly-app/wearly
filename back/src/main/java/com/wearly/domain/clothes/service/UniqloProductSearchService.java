@@ -150,10 +150,28 @@ public class UniqloProductSearchService {
         String normalizedName = analyzedName.replace("반소매", "반팔");
         addKeyword(keywords, normalizedName);
 
+        if (analyzedSearchKeywords != null) {
+            analyzedSearchKeywords.forEach(keyword ->
+                    addKeyword(keywords, keyword)
+            );
+        }
+
         boolean hasCollar = normalizedName.contains("카라")
                 || normalizedName.contains("폴로");
         boolean isShortSleeve = normalizedName.contains("반팔")
                 || normalizedName.contains("숏슬리브");
+        boolean isTShirt = normalizedName.contains("티셔츠")
+                || normalizedName.endsWith("T")
+                || normalizedName.endsWith("티");
+
+        if (isTShirt && isShortSleeve) {
+            addKeyword(keywords, "반팔 티셔츠");
+        }
+
+        if (isTShirt && !hasCollar) {
+            addKeyword(keywords, "크루넥 티셔츠");
+            addKeyword(keywords, "크루넥T");
+        }
 
         if (hasCollar) {
             if (isShortSleeve) {
@@ -167,12 +185,6 @@ public class UniqloProductSearchService {
             addKeyword(keywords, "피케 폴로셔츠");
             addKeyword(keywords, "카라 티셔츠");
             addKeyword(keywords, "폴로셔츠");
-        }
-
-        if (analyzedSearchKeywords != null) {
-            analyzedSearchKeywords.forEach(keyword ->
-                    addKeyword(keywords, keyword)
-            );
         }
 
         return keywords.stream()

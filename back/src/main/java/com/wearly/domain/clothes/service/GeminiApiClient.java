@@ -56,6 +56,7 @@ public class GeminiApiClient {
                 "\"category\": \"TOP\" or \"BOTTOM\" or \"OUTER\" or \"ONEPIECE\" or \"SHOES\" or \"BAG\" or \"ACCESSORY\", " +
                 "\"style\": \"CASUAL\" or \"MINIMAL\" or \"STREET\" or \"SPORTY\" or \"FORMAL\" or \"VINTAGE\", " +
                 "\"name\": \"a short generic Korean clothing name based only on visible features, e.g. 카고 와이드 팬츠\", " +
+                "\"searchKeywords\": [\"three to four short Korean UNIQLO search queries based on visible features, e.g. 반팔 티셔츠, 크루넥 티셔츠, 크루넥T\"], " +
                 "\"brand\": \"brand name (string, e.g. Uniqlo, divein) or null if not detected\", " +
                 "\"material\": \"material text (string, e.g. Cotton 100%, Denim 100%)\", " +
                 "\"thickness\": 1 (thin) or 2 (medium) or 3 (thick), " +
@@ -136,6 +137,18 @@ public class GeminiApiClient {
                 : data.path("brand").asText();
         String material = data.path("material")
                 .asText("Cotton 100%");
+        List<String> searchKeywords = new ArrayList<>();
+
+        if (data.path("searchKeywords").isArray()) {
+            data.path("searchKeywords").forEach(keyword -> {
+                String value = keyword.asText("").trim();
+
+                if (!value.isBlank()) {
+                    searchKeywords.add(value);
+                }
+            });
+        }
+
         int thickness = data.path("thickness").asInt(2);
         double cloValue = data.path("cloValue").asDouble(0.65);
         int colorH = data.path("colorH").asInt(0);
@@ -148,6 +161,7 @@ public class GeminiApiClient {
                 .name(name)
                 .brand(brand)
                 .material(material)
+                .searchKeywords(searchKeywords)
                 .thickness(thickness)
                 .cloValue(cloValue)
                 .colorH(colorH)

@@ -48,11 +48,16 @@ public class GeminiApiClient {
         Map<String, Object> partText = new HashMap<>();
         partText.put("text", "Identify the clothing item in this image and extract details. " +
                 "The name field must be a short generic clothing name written in Korean Hangul. " +
+                "Also create 3 to 5 Korean shopping search keywords. " +
+                "Include retail synonyms and, when a brand is visible, terminology commonly used by that brand. " +
+                "For example, a short-sleeve collared top may use 반팔 폴로셔츠, 피케 폴로셔츠, 카라 티셔츠, or 니트 폴로셔츠. " +
+                "Do not claim an exact product feature that cannot be inferred from the image. " +
                 "Respond strictly in JSON format matching this schema: " +
                 "{ " +
                 "\"category\": \"TOP\" or \"BOTTOM\" or \"OUTER\" or \"ONEPIECE\" or \"SHOES\" or \"BAG\" or \"ACCESSORY\", " +
                 "\"style\": \"CASUAL\" or \"MINIMAL\" or \"STREET\" or \"SPORTY\" or \"FORMAL\" or \"VINTAGE\", " +
                 "\"name\": \"a short generic Korean clothing name based only on visible features, e.g. 카고 와이드 팬츠\", " +
+                "\"searchKeywords\": [\"3 to 5 concise Korean retail search terms, ordered from specific to broad\"], " +
                 "\"brand\": \"brand name (string, e.g. Uniqlo, divein) or null if not detected\", " +
                 "\"material\": \"material text (string, e.g. Cotton 100%, Denim 100%)\", " +
                 "\"thickness\": 1 (thin) or 2 (medium) or 3 (thick), " +
@@ -133,6 +138,16 @@ public class GeminiApiClient {
                 : data.path("brand").asText();
         String material = data.path("material")
                 .asText("Cotton 100%");
+        List<String> searchKeywords = new ArrayList<>();
+
+        data.path("searchKeywords").forEach(keyword -> {
+            String value = keyword.asText("").trim();
+
+            if (!value.isBlank()) {
+                searchKeywords.add(value);
+            }
+        });
+
         int thickness = data.path("thickness").asInt(2);
         double cloValue = data.path("cloValue").asDouble(0.65);
         int colorH = data.path("colorH").asInt(0);
@@ -145,6 +160,7 @@ public class GeminiApiClient {
                 .name(name)
                 .brand(brand)
                 .material(material)
+                .searchKeywords(searchKeywords)
                 .thickness(thickness)
                 .cloValue(cloValue)
                 .colorH(colorH)
@@ -282,6 +298,10 @@ public class GeminiApiClient {
                 .colorV(90) // greyish white
                 .brand("데모 브랜드")
                 .material("코튼 100%")
+                .searchKeywords(List.of(
+                        "반팔 티셔츠",
+                        "여름 상의"
+                ))
                 .thickness(2)
                 .cloValue(0.65)
                 .build();

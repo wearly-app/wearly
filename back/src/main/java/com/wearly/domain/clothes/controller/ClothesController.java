@@ -108,7 +108,8 @@ public class ClothesController {
             Optional<ProductSearchCandidate> matchedProduct =
                     uniqloProductSearchService.search(
                             analyzedResponse.getCategory(),
-                            name
+                            name,
+                            analyzedResponse.getSearchKeywords()
                     );
 
             String productUrl = matchedProduct

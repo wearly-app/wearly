@@ -13,7 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,34 +43,66 @@ public class UniqloProductSearchService {
             Category category,
             String analyzedName
     ) {
+        return search(category, analyzedName, List.of());
+    }
+
+    public Optional<ProductSearchCandidate> search(
+            Category category,
+            String analyzedName,
+            List<String> analyzedSearchKeywords
+    ) {
         if (category == null
                 || analyzedName == null
                 || analyzedName.isBlank()) {
             return Optional.empty();
         }
 
-        String searchKeyword = analyzedName.trim();
-        List<ProductSearchCandidate> products = getProducts(
-                searchKeyword
+        List<String> searchKeywords = createSearchKeywords(
+                analyzedName,
+                analyzedSearchKeywords
         );
+        Map<String, ProductSearchCandidate> productsByUrl =
+                new LinkedHashMap<>();
+
+        for (String searchKeyword : searchKeywords) {
+            for (ProductSearchCandidate product : getProducts(
+                    searchKeyword
+            )) {
+                productsByUrl.putIfAbsent(
+                        product.productUrl(),
+                        product
+                );
+            }
+        }
+
+        List<ProductSearchCandidate> products =
+                new ArrayList<>(productsByUrl.values());
+        List<String> comparisonNames = new ArrayList<>();
+        comparisonNames.add(analyzedName);
+        comparisonNames.addAll(searchKeywords);
 
         Optional<ProductSearchCandidate> bestCandidate = products.stream()
                 .map(product -> new ProductSearchCandidate(
                         product.name(),
                         product.productUrl(),
-                        ProductNameSimilarity.calculate(
-                                analyzedName,
-                                product.name()
-                        )
+                        comparisonNames.stream()
+                                .mapToDouble(name ->
+                                        ProductNameSimilarity.calculate(
+                                                name,
+                                                product.name()
+                                        )
+                                )
+                                .max()
+                                .orElse(0.0)
                 ))
-                .max((first, second) -> Double.compare(
-                        first.similarity(),
-                        second.similarity()
+                .max(Comparator.comparingDouble(
+                        ProductSearchCandidate::similarity
                 ));
 
         bestCandidate.ifPresent(product -> log.info(
-                "Uniqlo best candidate. keyword: {}, productName: {}, similarity: {}, url: {}",
-                searchKeyword,
+                "Uniqlo best candidate. analyzedName: {}, searchKeywords: {}, productName: {}, similarity: {}, url: {}",
+                analyzedName,
+                searchKeywords,
                 product.name(),
                 product.similarity(),
                 product.productUrl()
@@ -80,8 +114,8 @@ public class UniqloProductSearchService {
                 );
 
         result.ifPresent(product -> log.info(
-                "Uniqlo product matched. keyword: {}, productName: {}, similarity: {}",
-                searchKeyword,
+                "Uniqlo product matched. analyzedName: {}, productName: {}, similarity: {}",
+                analyzedName,
                 product.name(),
                 product.similarity()
         ));
@@ -89,12 +123,13 @@ public class UniqloProductSearchService {
         if (bestCandidate.isEmpty()) {
             log.info(
                     "No Uniqlo product candidate found. keyword: {}",
-                    searchKeyword
+                    analyzedName
             );
         } else if (result.isEmpty()) {
             log.info(
-                    "Uniqlo best candidate did not meet similarity threshold. keyword: {}, similarity: {}, threshold: {}, candidateCount: {}",
-                    searchKeyword,
+                    "Uniqlo best candidate did not meet similarity threshold. analyzedName: {}, searchKeywords: {}, similarity: {}, threshold: {}, candidateCount: {}",
+                    analyzedName,
+                    searchKeywords,
                     bestCandidate.get().similarity(),
                     MINIMUM_SIMILARITY,
                     products.size()
@@ -102,6 +137,58 @@ public class UniqloProductSearchService {
         }
 
         return result;
+    }
+
+    List<String> createSearchKeywords(
+            String analyzedName,
+            List<String> analyzedSearchKeywords
+    ) {
+        LinkedHashSet<String> keywords = new LinkedHashSet<>();
+
+        addKeyword(keywords, analyzedName);
+
+        String normalizedName = analyzedName.replace("반소매", "반팔");
+        addKeyword(keywords, normalizedName);
+
+        boolean hasCollar = normalizedName.contains("카라")
+                || normalizedName.contains("폴로");
+        boolean isShortSleeve = normalizedName.contains("반팔")
+                || normalizedName.contains("숏슬리브");
+
+        if (hasCollar) {
+            if (isShortSleeve) {
+                addKeyword(keywords, "반팔 폴로셔츠");
+            }
+
+            if (normalizedName.contains("니트")) {
+                addKeyword(keywords, "니트 폴로셔츠");
+            }
+
+            addKeyword(keywords, "피케 폴로셔츠");
+            addKeyword(keywords, "카라 티셔츠");
+            addKeyword(keywords, "폴로셔츠");
+        }
+
+        if (analyzedSearchKeywords != null) {
+            analyzedSearchKeywords.forEach(keyword ->
+                    addKeyword(keywords, keyword)
+            );
+        }
+
+        return keywords.stream()
+                .limit(6)
+                .toList();
+    }
+
+    private void addKeyword(
+            LinkedHashSet<String> keywords,
+            String keyword
+    ) {
+        if (keyword == null || keyword.isBlank()) {
+            return;
+        }
+
+        keywords.add(keyword.trim());
     }
 
     private synchronized List<ProductSearchCandidate> getProducts(

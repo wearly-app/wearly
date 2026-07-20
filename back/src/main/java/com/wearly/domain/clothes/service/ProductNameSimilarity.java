@@ -1,6 +1,5 @@
 package com.wearly.domain.clothes.service;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -217,11 +216,28 @@ final class ProductNameSimilarity {
                 normalizedProductName
         );
 
-        double finalScore = keywordScore * 0.7
+        String analyzedType = extractClothingType(
+                normalizedAnalyzedName
+        );
+        String productType = extractClothingType(
+                normalizedProductName
+        );
+
+        if (!analyzedType.isBlank()
+                && analyzedType.equals(productType)) {
+            return 0.5
+                    + keywordScore * 0.3
+                    + bigramScore * 0.2;
+        }
+
+        if (!analyzedType.isBlank()
+                && !productType.isBlank()) {
+            return keywordScore * 0.25
+                    + bigramScore * 0.15;
+        }
+
+        return keywordScore * 0.7
                 + bigramScore * 0.3;
-
-
-        return finalScore;
     }
 
     private static double calculateBigramScore(
@@ -285,6 +301,7 @@ final class ProductNameSimilarity {
 
         return name
                 .replaceAll("\\([^)]*\\)", "")
+                .replaceAll("\\[[^]]*]", "")
                 .replace("\uB9C8\uCD08", "")
                 .replace("UNIQLO", "")
                 .replace("Uniqlo", "")
@@ -292,7 +309,65 @@ final class ProductNameSimilarity {
                         "[^\\p{IsHangul}a-zA-Z0-9]",
                         ""
                 )
-                .toLowerCase(Locale.ROOT);
+                .toLowerCase(Locale.ROOT)
+                .replace("에어리즘", "")
+                .replace("드라이", "")
+                .replace("컬러", "")
+                .replace("반소매", "반팔")
+                .replace("숏슬리브", "반팔")
+                .replace("크루넥t", "크루넥티셔츠")
+                .replace("카라t", "카라티셔츠")
+                .replace("폴로t", "폴로티셔츠");
+    }
+
+    private static String extractClothingType(String name) {
+        if (name.contains("폴로티셔츠")
+                || name.contains("카라티셔츠")
+                || name.contains("폴로셔츠")
+                || name.contains("카라티")) {
+            return "POLO_SHIRT";
+        }
+
+        if (name.contains("티셔츠")
+                || name.endsWith("티")) {
+            return "T_SHIRT";
+        }
+
+        if (name.contains("셔츠")) {
+            return "SHIRT";
+        }
+
+        if (name.contains("니트")
+                || name.contains("스웨터")) {
+            return "KNIT";
+        }
+
+        if (name.contains("팬츠")
+                || name.contains("바지")
+                || name.contains("슬랙스")
+                || name.contains("데님")) {
+            return "PANTS";
+        }
+
+        if (name.contains("자켓")
+                || name.contains("재킷")) {
+            return "JACKET";
+        }
+
+        if (name.contains("코트")) {
+            return "COAT";
+        }
+
+        if (name.contains("원피스")
+                || name.contains("드레스")) {
+            return "ONEPIECE";
+        }
+
+        if (name.contains("스커트")) {
+            return "SKIRT";
+        }
+
+        return "";
     }
 
     private static Set<String> createBigrams(String value) {

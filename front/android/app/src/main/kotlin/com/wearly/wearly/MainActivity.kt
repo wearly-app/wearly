@@ -2,6 +2,7 @@ package com.wearly.wearly
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -14,8 +15,15 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (BuildConfig.DEBUG) {
-            Log.d("KakaoKeyHash", "Kakao KeyHash: ${getKeyHash(this)}")
+
+        val isDebuggable =
+            (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+        if (isDebuggable) {
+            Log.d(
+                "KakaoKeyHash",
+                "Kakao KeyHash: ${getKeyHash(this)}"
+            )
         }
     }
 

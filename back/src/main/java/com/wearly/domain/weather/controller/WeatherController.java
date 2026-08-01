@@ -28,7 +28,7 @@ public class WeatherController {
 
     @Operation(
             summary = "현재 날씨 조회",
-            description = "위도와 경도를 기반으로 현재 날씨 정보를 조회한다."
+            description = "위도와 경도를 기반으로 현재 날씨와 오늘 강수 예보, 미세먼지 정보를 조회한다."
     )
     @GetMapping
     public ResponseEntity<WeatherResponse> getCurrentWeather(

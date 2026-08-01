@@ -188,7 +188,7 @@ public class OutfitHistoryService {
                 .map(OutfitHistoryItem::getClothes)
                 .map(clothes -> OutfitClothesResponse.from(
                         clothes,
-                        s3ImageStorage.getUrl(clothes.getImageUrl())
+                        s3ImageStorage.getUrl(clothes.getImageKey())
                 ))
                 .toList();
     }

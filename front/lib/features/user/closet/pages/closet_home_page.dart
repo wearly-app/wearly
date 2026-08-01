@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:front/features/user/closet/widgets/add_item_sheets.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
 import 'package:front/services/api_service.dart';
+import 'package:front/features/user/closet/models/recommendation_response.dart';
 
 // Closet Home Page
 // ──────────────────────────────────────────────
@@ -16,11 +17,38 @@ class ClosetHomePage extends StatefulWidget {
 class _ClosetHomePageState extends State<ClosetHomePage> {
   final ApiService _apiService = ApiService();
   UserModel? _userProfile;
+  RecommendationWeather? _weatherData;
+  bool _isWeatherLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadWeatherData();
+  }
+
+  Future<void> _loadWeatherData() async {
+    final closetService = ClosetService.instance;
+    if (closetService.cachedWeather != null) {
+      if (mounted) {
+        setState(() {
+          _weatherData = closetService.cachedWeather;
+          _isWeatherLoading = false;
+        });
+      }
+      return;
+    }
+
+    setState(() { _isWeatherLoading = true; });
+    // 서울시청 기본 좌표를 통한 추천 날씨 데이터 호출
+    final response = await _apiService.getRecommendations(latitude: 37.5665, longitude: 126.9780, style: 'CASUAL', limit: 1);
+    if (mounted) {
+      setState(() {
+        _weatherData = response?.weather;
+        closetService.cachedWeather = response?.weather;
+        _isWeatherLoading = false;
+      });
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -43,6 +71,7 @@ class _ClosetHomePageState extends State<ClosetHomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(context),
+              _buildWeatherSection(context),
               _buildSectionTitle('주요 기능', '전체 보기'),
               _buildMainFeatures(context),
               _buildSectionTitle('스마트 AI 코디 추천', ''),
@@ -95,6 +124,204 @@ class _ClosetHomePageState extends State<ClosetHomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildWeatherSection(BuildContext context) {
+    if (_isWeatherLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Center(child: CircularProgressIndicator(color: Color(0xFF6A1B9A))),
+      );
+    }
+
+    if (_weatherData == null) {
+      return const SizedBox.shrink();
+    }
+
+    final w = _weatherData!;
+    Color bgColor1 = const Color(0xFFE3F2FD);
+    Color bgColor2 = const Color(0xFFBBDEFB);
+    IconData weatherIcon = Icons.wb_sunny_rounded;
+    Color iconColor = Colors.orange;
+    String weatherText = '맑음';
+
+    if (w.condition.contains('RAIN')) {
+      bgColor1 = const Color(0xFFCFD8DC);
+      bgColor2 = const Color(0xFF90A4AE);
+      weatherIcon = Icons.water_drop_rounded;
+      iconColor = Colors.blue.shade700;
+      weatherText = '비';
+    } else if (w.condition.contains('CLOUDY')) {
+      bgColor1 = const Color(0xFFF5F5F5);
+      bgColor2 = const Color(0xFFE0E0E0);
+      weatherIcon = Icons.cloud_rounded;
+      iconColor = Colors.grey.shade600;
+      weatherText = '흐림';
+    } else if (w.condition.contains('SNOW')) {
+      bgColor1 = const Color(0xFFE1F5FE);
+      bgColor2 = const Color(0xFFB3E5FC);
+      weatherIcon = Icons.ac_unit_rounded;
+      iconColor = Colors.lightBlue;
+      weatherText = '눈';
+    }
+
+    Color dustColor = Colors.green;
+    String dustText = '좋음';
+    if (w.dustGrade == 'MODERATE') {
+      dustColor = Colors.orange;
+      dustText = '보통';
+    } else if (w.dustGrade == 'BAD') {
+      dustColor = Colors.deepOrange;
+      dustText = '나쁨';
+    } else if (w.dustGrade == 'VERY_BAD') {
+      dustColor = Colors.red;
+      dustText = '매우 나쁨';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [bgColor1, bgColor2],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${w.temperature.toStringAsFixed(1)}°',
+                          style: const TextStyle(
+                            fontSize: 42,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF2D3142),
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            '체감 ${w.feelsLikeTemperature?.toStringAsFixed(1) ?? w.temperature.toStringAsFixed(1)}°',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF455A64), // Blue Grey 700
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(weatherIcon, size: 16, color: iconColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            weatherText,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF2D3142),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(width: 1, height: 12, color: Colors.grey.shade400),
+                          const SizedBox(width: 8),
+                          Text(
+                            '미세먼지 $dustText',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: dustColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Icon(
+                  weatherIcon,
+                  size: 56,
+                  color: iconColor.withOpacity(0.8),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildWeatherDetailItem(Icons.water_drop_outlined, '습도', '${w.humidity ?? 0}%'),
+                  _buildWeatherDetailItem(Icons.air, '풍속', '${w.windSpeed ?? 0}m/s'),
+                  _buildWeatherDetailItem(Icons.umbrella_outlined, '강수확률', '${w.maxRainProbability ?? 0}%'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeatherDetailItem(IconData icon, String label, String value) {
+    return Column(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey.shade700),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF2D3142),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 

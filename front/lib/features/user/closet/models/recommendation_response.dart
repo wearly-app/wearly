@@ -3,17 +3,44 @@ import 'package:front/features/user/closet/models/clothing_item.dart';
 
 class RecommendationWeather {
   final double temperature;
+  final double? feelsLikeTemperature;
   final String condition;
+  final int? humidity;
+  final double? windSpeed;
+  final bool? willRainToday;
+  final int? maxRainProbability;
+  final double? pm10;
+  final double? pm25;
+  final String? dustGrade;
+  final DateTime? observedAt;
 
   const RecommendationWeather({
     required this.temperature,
+    this.feelsLikeTemperature,
     required this.condition,
+    this.humidity,
+    this.windSpeed,
+    this.willRainToday,
+    this.maxRainProbability,
+    this.pm10,
+    this.pm25,
+    this.dustGrade,
+    this.observedAt,
   });
 
   factory RecommendationWeather.fromJson(Map<String, dynamic> json) {
     return RecommendationWeather(
       temperature: (json['temperature'] as num?)?.toDouble() ?? 0,
+      feelsLikeTemperature: (json['feelsLikeTemperature'] as num?)?.toDouble(),
       condition: json['weather'] as String? ?? 'UNKNOWN',
+      humidity: (json['humidity'] as num?)?.toInt(),
+      windSpeed: (json['windSpeed'] as num?)?.toDouble(),
+      willRainToday: json['willRainToday'] as bool?,
+      maxRainProbability: (json['maxRainProbability'] as num?)?.toInt(),
+      pm10: (json['pm10'] as num?)?.toDouble(),
+      pm25: (json['pm25'] as num?)?.toDouble(),
+      dustGrade: json['dustGrade'] as String?,
+      observedAt: json['observedAt'] != null ? DateTime.tryParse(json['observedAt'] as String) : null,
     );
   }
 }

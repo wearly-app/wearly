@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:front/features/user/closet/models/clothing_item.dart';
+import 'package:front/features/user/closet/models/recommendation_response.dart';
+
 
 class ClosetService {
   ClosetService._();
   static final ClosetService instance = ClosetService._();
+
+  RecommendationWeather? cachedWeather;
+
 
   final ValueNotifier<List<ClothingItem>> wardrobeNotifier =
       ValueNotifier<List<ClothingItem>>([]);

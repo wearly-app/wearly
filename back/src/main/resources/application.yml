@@ -18,6 +18,7 @@ jwt:
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-3.5-flash}
 
 springdoc:
   api-docs:
@@ -31,3 +32,7 @@ weather:
   api:
     key: ${WEATHER_API_KEY}
     base-url: https://api.openweathermap.org
+
+rembg:
+  api:
+    base-url: ${REMBG_API_BASE_URL:http://localhost:8000}

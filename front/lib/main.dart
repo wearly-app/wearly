@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -35,8 +35,13 @@ void main() async {
     javaScriptAppKey: AppConfig.kakaoJavaScriptAppKey,
   );
 
-  // Initialize closet demo data
-  ClosetService.instance.initializeDemoData();
+  if (kDebugMode && !kIsWeb) {
+    debugPrint('Kakao KeyHash: ${KakaoSdk.platformInfo.origin}');
+  }
+
+  if (AppConfig.useMockApi) {
+    ClosetService.instance.initializeDemoData();
+  }
 
   runApp(const WearlyApp());
 }

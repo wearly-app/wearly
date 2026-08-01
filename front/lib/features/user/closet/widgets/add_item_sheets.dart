@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
-import 'dart:convert';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:front/features/user/closet/models/clothing_item.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
@@ -49,19 +47,23 @@ class AddItemSourceSheet extends StatelessWidget {
                 Expanded(
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F4F4),
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.search, size: 18, color: Colors.grey.shade500),
+                        Icon(Icons.search,
+                            size: 18, color: Colors.grey.shade500),
                         const SizedBox(width: 8),
                         Text('아이템 설명',
-                            style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+                            style: TextStyle(
+                                color: Colors.grey.shade400, fontSize: 14)),
                         const Spacer(),
-                        Icon(Icons.camera_alt_outlined, size: 18, color: Colors.grey.shade500),
+                        Icon(Icons.camera_alt_outlined,
+                            size: 18, color: Colors.grey.shade500),
                       ],
                     ),
                   ),
@@ -94,69 +96,9 @@ class AddItemSourceSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            const Text('자동으로 가져오기',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: _sourceItem(
-                context,
-                Icons.store_outlined,
-                '온라인 스토어 (URL/화면 캡처)',
-                onTap: () => _showUrlInputDialog(context),
-              ),
-            ),
           ],
         ),
       ),
-    );
-  }
-
-  Future<void> _showUrlInputDialog(BuildContext context) async {
-    final TextEditingController urlCtrl = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('온라인 스토어 URL 입력', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          content: TextField(
-            controller: urlCtrl,
-            decoration: InputDecoration(
-              hintText: 'https://macho707.com/...',
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-              filled: true,
-              fillColor: const Color(0xFFF4F4F4),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('취소', style: TextStyle(color: Colors.grey)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext); // Close dialog
-                if (urlCtrl.text.isNotEmpty) {
-                  Navigator.pop(context); // Close AddItemSourceSheet
-                  showModalBottomSheet(
-                    context: context,
-                    backgroundColor: Colors.transparent,
-                    isScrollControlled: true,
-                    builder: (_) => AddItemProcessSheet(
-                      initialUrl: urlCtrl.text,
-                      onAdded: onAdded,
-                    ),
-                  );
-                }
-              },
-              child: const Text('가져오기', style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -174,7 +116,9 @@ class AddItemSourceSheet extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 26, color: filled ? Colors.white : const Color(0xFF333333)),
+            Icon(icon,
+                size: 26,
+                color: filled ? Colors.white : const Color(0xFF333333)),
             const SizedBox(height: 6),
             Text(label,
                 style: TextStyle(
@@ -189,7 +133,8 @@ class AddItemSourceSheet extends StatelessWidget {
 
   Future<void> _pickImage(BuildContext context, ImageSource source) async {
     final picker = ImagePicker();
-    final XFile? picked = await picker.pickImage(source: source, imageQuality: 85);
+    final XFile? picked =
+        await picker.pickImage(source: source, imageQuality: 85);
     if (picked == null) return;
 
     if (context.mounted) {
@@ -212,10 +157,12 @@ class AddItemSourceSheet extends StatelessWidget {
 // ──────────────────────────────────────────────
 class AddItemProcessSheet extends StatefulWidget {
   final XFile? imageFile;
-  final String? initialUrl;
   final VoidCallback onAdded;
-  const AddItemProcessSheet(
-      {super.key, this.imageFile, this.initialUrl, required this.onAdded});
+  const AddItemProcessSheet({
+    super.key,
+    this.imageFile,
+    required this.onAdded,
+  });
 
   @override
   State<AddItemProcessSheet> createState() => _AddItemProcessSheetState();
@@ -230,13 +177,15 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
   // Processed results
   Uint8List? _inputBytes;
   Uint8List? _processedBytes;
+  String? _analyzedImageKey;
+  String? _analyzedImageUrl;
   String _extractedColorHex = '#FFFFFF';
   String? _aiExtractedColorHex;
   bool _isRembgActive = false;
   bool _isLocalServer = false;
   String _serverStatus = '배경 분리 완료';
-  bool _isCrawling = false;
   bool _isAnalyzingImage = false;
+  bool _isSaving = false;
 
   // Simulated AI tag analysis states
   bool _isAiAnalyzed = false;
@@ -253,9 +202,25 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
   final List<String> _selectedSituations = ['캐주얼'];
   int _styleLevel = 2; // 1 ~ 5
 
-  final List<String> _categories = const ['상의', '하의', '아우터', '원피스', '신발', '가방', '기타'];
+  final List<String> _categories = const [
+    '상의',
+    '하의',
+    '아우터',
+    '원피스',
+    '신발',
+    '가방',
+    '기타'
+  ];
   final List<String> _seasons = const ['봄', '여름', '가을', '겨울'];
-  final List<String> _styles = const ['캐주얼', '미니멀', '스트릿', '아메카지', '스포티', '격식', '데이트'];
+  final List<String> _styles = const [
+    '캐주얼',
+    '미니멀',
+    '스트릿',
+    '아메카지',
+    '스포티',
+    '격식',
+    '데이트'
+  ];
 
   // Standard colors preset for user manual overrides
   final List<Map<String, dynamic>> _presetColors = [
@@ -299,10 +264,7 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
   }
 
   Future<void> _initImagesAndProcess() async {
-    if (widget.initialUrl != null) {
-      // If started with URL, immediately run URL crawling mock
-      _crawlClothingInfo(initial: true);
-    } else if (widget.imageFile != null) {
+    if (widget.imageFile != null) {
       final bytes = await widget.imageFile!.readAsBytes();
       if (mounted) {
         setState(() {
@@ -334,12 +296,18 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
   double _getCloValueFromSlider(double value) {
     int stage = value.toInt();
     switch (stage) {
-      case 1: return 0.15;
-      case 2: return 0.45;
-      case 3: return 0.65;
-      case 4: return 1.0;
-      case 5: return 1.6;
-      default: return 0.15;
+      case 1:
+        return 0.15;
+      case 2:
+        return 0.45;
+      case 3:
+        return 0.65;
+      case 4:
+        return 1.0;
+      case 5:
+        return 1.6;
+      default:
+        return 0.15;
     }
   }
 
@@ -376,46 +344,47 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
           _progress = 1.0;
         });
 
-        // Parse Base64 Image
-        final imageUrl = result['imageUrl'] as String;
-        Uint8List? processedImageBytes;
-        if (imageUrl.startsWith('data:image/png;base64,')) {
-          final base64Str = imageUrl.substring('data:image/png;base64,'.length);
-          processedImageBytes = base64Decode(base64Str);
+        final imageKey = result['imageKey'] as String?;
+        final imageUrl = result['imageUrl'] as String?;
+
+        if (imageKey == null || imageKey.isEmpty) {
+          throw StateError('분석 응답에 imageKey가 없습니다.');
         }
 
         // Map Category
-        final backendCategory = result['category'] as String?;
-        String mappedCategory = '기타';
-        if (backendCategory == 'TOP') mappedCategory = '상의';
-        else if (backendCategory == 'BOTTOM') mappedCategory = '하의';
-        else if (backendCategory == 'OUTER') mappedCategory = '아우터';
-        else if (backendCategory == 'ONEPIECE') mappedCategory = '원피스';
-        else if (backendCategory == 'SHOES') mappedCategory = '신발';
-        else if (backendCategory == 'BAG') mappedCategory = '가방';
-        else if (backendCategory == 'ACCESSORY') mappedCategory = '기타';
+        final mappedCategory = switch (result['category'] as String?) {
+          'TOP' => '상의',
+          'BOTTOM' => '하의',
+          'OUTER' => '아우터',
+          'ONEPIECE' => '원피스',
+          'SHOES' => '신발',
+          'BAG' => '가방',
+          _ => '기타',
+        };
 
         // Map Style
-        final backendStyle = result['style'] as String?;
-        String mappedStyle = '캐주얼';
-        if (backendStyle == 'CASUAL') mappedStyle = '캐주얼';
-        else if (backendStyle == 'MINIMAL') mappedStyle = '미니멀';
-        else if (backendStyle == 'STREET') mappedStyle = '스트릿';
-        else if (backendStyle == 'SPORTY') mappedStyle = '스포티';
-        else if (backendStyle == 'FORMAL') mappedStyle = '격식';
-        else if (backendStyle == 'VINTAGE') mappedStyle = '데이트'; // maps vintage to date
+        final mappedStyle = switch (result['style'] as String?) {
+          'MINIMAL' => '미니멀',
+          'STREET' => '스트릿',
+          'SPORTY' => '스포티',
+          'FORMAL' => '격식',
+          'VINTAGE' => '데이트',
+          _ => '캐주얼',
+        };
 
         // Convert HSV to Hex Color
         final h = result['colorH'] as int? ?? 0;
         final s = result['colorS'] as int? ?? 0;
         final v = result['colorV'] as int? ?? 100;
-        final color = HSVColor.fromAHSV(1.0, h.toDouble(), s.toDouble() / 100.0, v.toDouble() / 100.0).toColor();
-        final hexColor = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+        final color = HSVColor.fromAHSV(
+                1.0, h.toDouble(), s.toDouble() / 100.0, v.toDouble() / 100.0)
+            .toColor();
+        final hexColor =
+            '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
         final brand = result['brand'] as String? ?? '';
         final material = result['material'] as String? ?? '';
         final thickness = result['thickness'] as int? ?? 2;
-        final cloValue = result['cloValue'] as double? ?? 0.65;
 
         // Map thickness to CLO Slider value (1.0 to 5.0 discrete)
         double mappedSliderValue = 3.0; // 봄/가을용
@@ -426,21 +395,25 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
         }
 
         setState(() {
-          _processedBytes = processedImageBytes ?? inputBytes;
+          _analyzedImageKey = imageKey;
+          _analyzedImageUrl = imageUrl;
+          _processedBytes = null;
           _isRembgActive = true;
           _isLocalServer = true;
           _serverStatus = 'AI 분석 완료 (배경 제거 & 속성 추출 성공)';
-          
-          final name = result['name'] ?? '';
+
+          final name = result['name'] as String? ?? '';
           _brandCtrl.text = brand;
-          _nameCtrl.text = name.isNotEmpty ? name : (brand.isNotEmpty ? '$brand $mappedCategory' : '$mappedCategory');
+          _nameCtrl.text = name.isNotEmpty
+              ? name
+              : (brand.isNotEmpty ? '$brand $mappedCategory' : mappedCategory);
           _extractedColorHex = hexColor;
           _selectedCategory = mappedCategory;
           _extractedMaterial = material;
           _materialCtrl.text = material;
           _cloSliderValue = mappedSliderValue;
           _isAiAnalyzed = true;
-          
+
           // Map Seasons
           _selectedSeasons.clear();
           if (thickness == 1) {
@@ -488,163 +461,110 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
     }
   }
 
-  Future<void> _crawlClothingInfo({bool initial = false}) async {
-    if (!mounted) return;
-    
-    if (initial) {
-      setState(() {
-        _step = 1;
-        _progress = 0.05;
-        _loadingText = '스토어에서 상품 정보를 가져오는 중...';
-      });
-    } else {
-      setState(() {
-        _isCrawling = true;
-      });
-    }
-
-    // Start a timer to animate progress
-    Timer? progressTimer;
-    if (initial) {
-      progressTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
-        setState(() {
-          if (_progress < 0.90) {
-            _progress += 0.03;
-          } else {
-            timer.cancel();
-          }
-        });
-      });
-    }
-
-    final apiService = ApiService();
-    // Use the URL provided or fallback to a dummy if none
-    final targetUrl = widget.initialUrl ?? 'https://macho707.com';
-    final result = await apiService.crawlClothingUrl(targetUrl);
-    
-    progressTimer?.cancel();
-
-    if (mounted) {
-      setState(() {
-        _progress = 1.0;
-        _isCrawling = false;
-        
-        if (result != null) {
-          _isRembgActive = true;
-          _isLocalServer = true;
-          _serverStatus = '웹 크롤링 정보 추출 완료';
-          _step = 2;
-          
-          _brandCtrl.text = result['brand'] ?? '브랜드 없음';
-          _nameCtrl.text = result['name'] ?? '새 상품';
-          _materialCtrl.text = result['material'] ?? '알 수 없음';
-          
-          // Basic fallbacks for a crawled item
-          _extractedColorHex = '#4A2F22';
-          _selectedCategory = '상의';
-          _cloSliderValue = 3.0;
-          _isAiAnalyzed = true;
-          
-          _selectedSeasons.clear();
-          _selectedSeasons.addAll(const ['봄', '가을']);
-          _selectedSituations.clear();
-          _selectedSituations.addAll(['캐주얼']);
-          
-          // Assuming the result might have an image URL, normally we'd fetch it, but here we just use asset fallback if it's mock
-          _inputBytes = null; 
-        } else {
-          _serverStatus = '크롤링 실패';
-          _step = 2;
-        }
-      });
-      
-      // Load asset image bytes if we don't have a real image yet
-      if (_inputBytes == null) {
-        try {
-          final ByteData data = await rootBundle.load('assets/macho_henley.png');
-          setState(() {
-            _inputBytes = data.buffer.asUint8List();
-            _processedBytes = _inputBytes;
-          });
-        } catch (_) {
-          // Fallback if asset is missing
-        }
-      }
-    }
-  }
-
   Future<void> _analyzeImageWithAI() async {
     await _simulateAiAnalysis();
   }
 
   Future<void> _saveItem() async {
+    if (_isSaving) return;
+
+    final imageKey = _analyzedImageKey;
+    if (imageKey == null || imageKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('분석된 이미지 키가 없습니다. 이미지를 다시 분석해주세요.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
     // 1. Prepare data for backend API
-    String backendCategory = 'TOP';
-    if (_selectedCategory == '상의') backendCategory = 'TOP';
-    else if (_selectedCategory == '하의') backendCategory = 'BOTTOM';
-    else if (_selectedCategory == '아우터') backendCategory = 'OUTER';
-    else if (_selectedCategory == '원피스') backendCategory = 'ONEPIECE';
-    else if (_selectedCategory == '신발') backendCategory = 'SHOES';
-    else if (_selectedCategory == '가방') backendCategory = 'BAG';
-    else if (_selectedCategory == '기타') backendCategory = 'ACCESSORY';
+    final backendCategory = switch (_selectedCategory) {
+      '하의' => 'BOTTOM',
+      '아우터' => 'OUTER',
+      '원피스' => 'ONEPIECE',
+      '신발' => 'SHOES',
+      '가방' => 'BAG',
+      '기타' => 'ACCESSORY',
+      _ => 'TOP',
+    };
 
     String backendStyle = 'CASUAL';
     if (_selectedSituations.isNotEmpty) {
-      final style = _selectedSituations.first;
-      if (style == '미니멀') backendStyle = 'MINIMAL';
-      else if (style == '스트릿') backendStyle = 'STREET';
-      else if (style == '스포티') backendStyle = 'SPORTY';
-      else if (style == '격식') backendStyle = 'FORMAL';
-      else if (style == '데이트') backendStyle = 'VINTAGE'; 
+      backendStyle = switch (_selectedSituations.first) {
+        '미니멀' => 'MINIMAL',
+        '스트릿' => 'STREET',
+        '스포티' => 'SPORTY',
+        '격식' => 'FORMAL',
+        '데이트' => 'VINTAGE',
+        _ => 'CASUAL',
+      };
     }
 
     final color = _parseHexColor(_extractedColorHex);
     final hsv = HSVColor.fromColor(color);
 
-    String base64Image = '';
-    if (_processedBytes != null) {
-      base64Image = base64Encode(_processedBytes!);
-    } else if (_inputBytes != null) {
-      base64Image = base64Encode(_inputBytes!);
-    }
-
     final itemData = {
+      'name': _nameCtrl.text.trim(),
       'category': backendCategory,
       'style': backendStyle,
-      'imageUrl': 'data:image/png;base64,$base64Image',
+      'imageKey': imageKey,
       'colorH': hsv.hue.toInt(),
       'colorS': (hsv.saturation * 100).toInt(),
       'colorV': (hsv.value * 100).toInt(),
       'brand': _brandCtrl.text.isEmpty ? 'No Brand' : _brandCtrl.text,
       'material': _materialCtrl.text.isEmpty ? '코튼 100%' : _materialCtrl.text,
-      'thickness': _cloSliderValue.toInt() <= 2 ? 1 : (_cloSliderValue.toInt() == 3 ? 2 : 3),
+      'thickness': _cloSliderValue.toInt() <= 2
+          ? 1
+          : (_cloSliderValue.toInt() == 3 ? 2 : 3),
       'cloValue': _getCloValueFromSlider(_cloSliderValue),
     };
 
     // 2. Call API to save to DB
     final apiService = ApiService();
-    await apiService.createClothingItem(itemData);
+    final created = await apiService.createClothingItem(itemData);
+
+    if (!mounted) return;
+    if (created == null) {
+      setState(() {
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('옷 저장에 실패했습니다. 잠시 후 다시 시도해주세요.'),
+        ),
+      );
+      return;
+    }
+
+    final createdImageUrl = created['imageUrl'] as String?;
+    final createdName = created['name'] as String?;
+    final lastWornAt = created['lastWornAt'] as String?;
 
     // 3. Save locally to UI State (ClosetService)
     final item = ClothingItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameCtrl.text.isEmpty ? '새 아이템' : _nameCtrl.text,
+      id: created['id'].toString(),
+      name: createdName?.isNotEmpty == true
+          ? createdName!
+          : (_nameCtrl.text.isEmpty ? '새 아이템' : _nameCtrl.text),
       category: _selectedCategory,
       brand: _brandCtrl.text.isEmpty ? 'No Brand' : _brandCtrl.text,
-      imageBytes: _processedBytes ?? _inputBytes,
+      imageUrl: createdImageUrl,
       fallbackColor: color,
       fallbackIcon: Icons.dry_cleaning,
       seasons: List<String>.from(_selectedSeasons),
       situation: List<String>.from(_selectedSituations),
-      thickness: _cloSliderValue.toInt() <= 2 ? 1 : (_cloSliderValue.toInt() == 3 ? 2 : 3),
+      thickness: _cloSliderValue.toInt() <= 2
+          ? 1
+          : (_cloSliderValue.toInt() == 3 ? 2 : 3),
       colorHex: _extractedColorHex,
       styleLevel: _styleLevel,
-      lastWornDate: DateTime.now().subtract(const Duration(days: 30)),
-      wearCount: 0,
+      lastWornDate: lastWornAt == null ? null : DateTime.tryParse(lastWornAt),
+      wearCount: (created['wearCount'] as num?)?.toInt() ?? 0,
       material: _materialCtrl.text.isEmpty ? '코튼 100%' : _materialCtrl.text,
       clo: _getCloValueFromSlider(_cloSliderValue),
     );
@@ -661,13 +581,17 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               SizedBox(width: 10),
               Text(
                 '✨ 스마트 옷장에 성공적으로 추가되었습니다! 내 옷장으로 이동합니다.',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13),
               ),
             ],
           ),
           backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -675,7 +599,8 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
       Navigator.pop(context);
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => WardrobePage(onRefresh: widget.onAdded)),
+        MaterialPageRoute(
+            builder: (_) => WardrobePage(onRefresh: widget.onAdded)),
       );
     }
   }
@@ -687,8 +612,10 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 350),
@@ -728,7 +655,8 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
                   else
                     const Center(child: CircularProgressIndicator()),
                   Container(
-                    color: Colors.white.withValues(alpha: 0.3 * (1 - _progress)),
+                    color:
+                        Colors.white.withValues(alpha: 0.3 * (1 - _progress)),
                   ),
                 ],
               ),
@@ -741,7 +669,11 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               _loadingText,
               key: ValueKey(_loadingText),
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF444444), height: 1.5, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF444444),
+                  height: 1.5,
+                  fontWeight: FontWeight.w600),
             ),
           ),
           const SizedBox(height: 14),
@@ -773,9 +705,11 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
         children: [
           Center(
             child: Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
-                  color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
             ),
           ),
           const SizedBox(height: 16),
@@ -801,43 +735,76 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
                       width: 140,
                       height: 140,
                       decoration: BoxDecoration(
-                        color: _parseHexColor(_extractedColorHex).withValues(alpha: 0.08),
+                        color: _parseHexColor(_extractedColorHex)
+                            .withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.grey.shade200),
                       ),
                       padding: const EdgeInsets.all(10),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: _processedBytes != null
-                            ? Image.memory(_processedBytes!, fit: BoxFit.contain)
-                            : (_inputBytes != null
-                                ? Image.memory(_inputBytes!, fit: BoxFit.contain)
-                                : const Center(child: CircularProgressIndicator())),
+                        child: _analyzedImageUrl?.isNotEmpty == true
+                            ? Image.network(
+                                _analyzedImageUrl!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    _inputBytes != null
+                                        ? Image.memory(
+                                            _inputBytes!,
+                                            fit: BoxFit.contain,
+                                          )
+                                        : const Icon(Icons.broken_image),
+                              )
+                            : (_processedBytes != null
+                                ? Image.memory(
+                                    _processedBytes!,
+                                    fit: BoxFit.contain,
+                                  )
+                                : (_inputBytes != null
+                                    ? Image.memory(
+                                        _inputBytes!,
+                                        fit: BoxFit.contain,
+                                      )
+                                    : const Center(
+                                        child: CircularProgressIndicator(),
+                                      ))),
                       ),
                     ),
                     Positioned(
                       bottom: 6,
                       right: 6,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: _isRembgActive
                               ? Colors.green.shade600
-                              : (_isLocalServer ? Colors.blue.shade600 : Colors.orange.shade600),
+                              : (_isLocalServer
+                                  ? Colors.blue.shade600
+                                  : Colors.orange.shade600),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              _isRembgActive ? Icons.check : (_isLocalServer ? Icons.color_lens : Icons.sync_problem),
+                              _isRembgActive
+                                  ? Icons.check
+                                  : (_isLocalServer
+                                      ? Icons.color_lens
+                                      : Icons.sync_problem),
                               size: 10,
                               color: Colors.white,
                             ),
                             const SizedBox(width: 3),
                             Text(
-                              _isRembgActive ? 'AI 누끼 완료' : (_isLocalServer ? '색상 추출 완료' : '서버 미연결'),
-                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                              _isRembgActive
+                                  ? 'AI 누끼 완료'
+                                  : (_isLocalServer ? '색상 추출 완료' : '서버 미연결'),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700),
                             ),
                           ],
                         ),
@@ -848,13 +815,17 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
                 const SizedBox(height: 6),
                 Text(
                   _serverStatus,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 8),
                 GestureDetector(
                   onTap: _analyzeImageWithAI,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.deepPurple.shade50,
                       borderRadius: BorderRadius.circular(20),
@@ -863,12 +834,15 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.center_focus_strong, size: 14, color: Colors.deepPurple),
+                        const Icon(Icons.center_focus_strong,
+                            size: 14, color: Colors.deepPurple),
                         const SizedBox(width: 6),
                         Text(
                           _isAnalyzingImage
                               ? '이미지 분석 검색 중...'
-                              : (_isAiAnalyzed ? 'AI 분석 정보 다시 찾기' : '이미지로 AI 상품 정보 자동 찾기'),
+                              : (_isAiAnalyzed
+                                  ? 'AI 분석 정보 다시 찾기'
+                                  : '이미지로 AI 상품 정보 자동 찾기'),
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -882,11 +856,14 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
           Row(
             children: [
-              const Text('아이템 이름', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+              const Text('아이템 이름',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 6),
@@ -900,11 +877,16 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
           const SizedBox(height: 16),
-          const Text('카테고리', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+          const Text('카테고리',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -914,14 +896,17 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               return GestureDetector(
                 onTap: () => setState(() => _selectedCategory = cat),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: sel ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4),
+                    color:
+                        sel ? const Color(0xFF1A1A1A) : const Color(0xFFF4F4F4),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(cat,
                       style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                         color: sel ? Colors.white : const Color(0xFF555555),
                       )),
                 ),
@@ -929,7 +914,11 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
             }).toList(),
           ),
           const SizedBox(height: 16),
-          const Text('브랜드', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+          const Text('브랜드',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           TextField(
             controller: _brandCtrl,
@@ -941,7 +930,8 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
           if (_brandCtrl.text.isEmpty && _isAiAnalyzed) ...[
@@ -950,12 +940,19 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               padding: const EdgeInsets.only(left: 4),
               child: Text(
                 '* 브랜드 크롤링 분석이 제한되어 직접 입력이 필요합니다.',
-                style: TextStyle(fontSize: 10, color: Colors.amber.shade800, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.amber.shade800,
+                    fontWeight: FontWeight.bold),
               ),
             ),
           ],
           const SizedBox(height: 16),
-          const Text('소재', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+          const Text('소재',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           TextField(
             controller: _materialCtrl,
@@ -967,7 +964,8 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
           if (_materialCtrl.text.isEmpty && _isAiAnalyzed) ...[
@@ -976,7 +974,10 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               padding: const EdgeInsets.only(left: 4),
               child: Text(
                 '* 소재 크롤링 분석이 제한되어 직접 입력이 필요합니다.',
-                style: TextStyle(fontSize: 10, color: Colors.amber.shade800, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.amber.shade800,
+                    fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -984,25 +985,37 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('기본 단열 지수(CLO)', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+              const Text('기본 단열 지수(CLO)',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600)),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     _getCloStageText(_cloSliderValue),
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF1A1A1A),
+                        fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: Colors.purple.shade50,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.purple.shade200, width: 0.5),
+                      border:
+                          Border.all(color: Colors.purple.shade200, width: 0.5),
                     ),
                     child: Text(
                       '${_getCloValueFromSlider(_cloSliderValue)} CLO',
-                      style: TextStyle(fontSize: 10, color: Colors.purple.shade700, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.purple.shade700,
+                          fontWeight: FontWeight.w800),
                     ),
                   ),
                 ],
@@ -1034,7 +1047,11 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
           const SizedBox(height: 16),
           Row(
             children: [
-              const Text('대표 색상 ', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+              const Text('대표 색상 ',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600)),
               Container(
                 width: 14,
                 height: 14,
@@ -1047,79 +1064,101 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
               const SizedBox(width: 6),
               Text(
                 _extractedColorHex.toUpperCase(),
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black87),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87),
               ),
               const SizedBox(width: 8),
               if (_isLocalServer)
                 const Text(
                   '(AI 추출)',
-                  style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold),
                 ),
             ],
           ),
           const SizedBox(height: 8),
-          Builder(
-            builder: (context) {
-              final List<Map<String, dynamic>> displayColors = [];
-              if (_aiExtractedColorHex != null) {
-                final isAiColorInPresets = _presetColors.any((preset) =>
-                    preset['hex'].toString().toLowerCase() ==
-                    _aiExtractedColorHex!.toLowerCase());
-                if (!isAiColorInPresets) {
-                  displayColors.add({
-                    'name': 'AI 추출',
-                    'hex': _aiExtractedColorHex!,
-                    'color': _parseHexColor(_aiExtractedColorHex!),
-                  });
-                }
+          Builder(builder: (context) {
+            final List<Map<String, dynamic>> displayColors = [];
+            if (_aiExtractedColorHex != null) {
+              final isAiColorInPresets = _presetColors.any((preset) =>
+                  preset['hex'].toString().toLowerCase() ==
+                  _aiExtractedColorHex!.toLowerCase());
+              if (!isAiColorInPresets) {
+                displayColors.add({
+                  'name': 'AI 추출',
+                  'hex': _aiExtractedColorHex!,
+                  'color': _parseHexColor(_aiExtractedColorHex!),
+                });
               }
-              displayColors.addAll(_presetColors);
+            }
+            displayColors.addAll(_presetColors);
 
-              return SizedBox(
-                height: 36,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: displayColors.length,
-                  separatorBuilder: (_, index) => const SizedBox(width: 8),
-                  itemBuilder: (_, i) {
-                    final col = displayColors[i];
-                    final isSelected = _extractedColorHex.toLowerCase() == col['hex'].toString().toLowerCase();
-                    return GestureDetector(
-                      onTap: () => setState(() => _extractedColorHex = col['hex']),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: col['color'],
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey.shade300,
-                            width: isSelected ? 3.0 : 1.0,
-                          ),
-                          boxShadow: isSelected
-                              ? [const BoxShadow(color: Colors.black12, blurRadius: 4, spreadRadius: 1)]
-                              : null,
+            return SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: displayColors.length,
+                separatorBuilder: (_, index) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final col = displayColors[i];
+                  final isSelected = _extractedColorHex.toLowerCase() ==
+                      col['hex'].toString().toLowerCase();
+                  return GestureDetector(
+                    onTap: () =>
+                        setState(() => _extractedColorHex = col['hex']),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: col['color'],
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF1A1A1A)
+                              : Colors.grey.shade300,
+                          width: isSelected ? 3.0 : 1.0,
                         ),
-                        child: isSelected
-                            ? Icon(
-                                Icons.check,
-                                size: 14,
-                                color: col['color'] == Colors.white ? Colors.black : Colors.white,
-                              )
+                        boxShadow: isSelected
+                            ? [
+                                const BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 4,
+                                    spreadRadius: 1)
+                              ]
                             : null,
                       ),
-                    );
-                  },
-                ),
-              );
-            }
-          ),
+                      child: isSelected
+                          ? Icon(
+                              Icons.check,
+                              size: 14,
+                              color: col['color'] == Colors.white
+                                  ? Colors.black
+                                  : Colors.white,
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              ),
+            );
+          }),
           const SizedBox(height: 16),
-          const Text('계절(공동선택)', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+          const Text('계절(공동선택)',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text(
             '💡 AI 추천 시 해당 계절에도 코디를 제안받고 싶다면 여러 계절을 함께 선택해 주세요.',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+            style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -1146,18 +1185,26 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
                   fontWeight: FontWeight.w600,
                 ),
                 backgroundColor: const Color(0xFFF4F4F4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
                 side: BorderSide.none,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               );
             }).toList(),
           ),
           const SizedBox(height: 16),
-          const Text('스타일', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+          const Text('스타일',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text(
             '💡 선택하신 스타일 정보는 AI 코디 추천 시 맞춤형 제안을 위해 활용됩니다.',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+            style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -1194,7 +1241,8 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
                   fontWeight: FontWeight.w600,
                 ),
                 backgroundColor: const Color(0xFFF4F4F4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
                 side: BorderSide.none,
               );
             }).toList(),
@@ -1203,16 +1251,31 @@ class _AddItemProcessSheetState extends State<AddItemProcessSheet> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _saveItem,
+              onPressed: _isSaving ? null : _saveItem,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A1A1A),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 elevation: 0,
               ),
-              child: const Text('스마트 옷장에 저장',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      '스마트 옷장에 저장',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 8),

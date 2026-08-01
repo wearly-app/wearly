@@ -30,32 +30,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final profile = await _apiService.getUserProfile();
+
+      if (!mounted) return;
+
       if (profile != null) {
         setState(() {
           _userProfile = profile;
           _isLoading = false;
         });
       } else {
-        // Fallback to mock profile for local development/testing
         setState(() {
-          _userProfile = UserModel(
-            id: 1,
-            kakaoId: '12345678',
-            name: '고규민(데모)',
-            email: 'demo@wearly.com',
-          );
+          _userProfile = null;
+          _errorMessage = '사용자 정보를 불러오지 못했습니다.';
           _isLoading = false;
         });
       }
     } catch (e) {
-      // Fallback to mock profile on error/exception
+      if (!mounted) return;
+
       setState(() {
-        _userProfile = UserModel(
-          id: 1,
-          kakaoId: '12345678',
-          name: '고규민(데모)',
-          email: 'demo@wearly.com',
-        );
+        _userProfile = null;
+        _errorMessage = '사용자 정보를 불러오는 중 오류가 발생했습니다.';
         _isLoading = false;
       });
     }

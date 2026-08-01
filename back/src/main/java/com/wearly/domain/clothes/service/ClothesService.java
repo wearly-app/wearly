@@ -42,7 +42,7 @@ public class ClothesService {
                 user,
                 request.getCategory(),
                 request.getStyle(),
-                request.getImageUrl(),
+                request.getImageKey(),
                 request.getColorH(),
                 request.getColorS(),
                 request.getColorV(),
@@ -98,7 +98,7 @@ public class ClothesService {
         clothes.update(
                 request.getCategory(),
                 request.getStyle(),
-                request.getImageUrl(),
+                request.getImageKey(),
                 request.getColorH(),
                 request.getColorS(),
                 request.getColorV(),
@@ -117,7 +117,7 @@ public class ClothesService {
     public void deleteClothes(Long userId, Long clothesId) {
         Clothes clothes = getClothesByIdAndUserId(clothesId, userId);
 
-        clothesRepository.delete(clothes);
+        clothes.softDelete();
     }
 
     private User getUser(Long userId) {
@@ -126,7 +126,11 @@ public class ClothesService {
     }
 
     private Clothes getClothesByIdAndUserId(Long clothesId, Long userId) {
-        return clothesRepository.findByIdAndUser_Id(clothesId, userId)
+        return clothesRepository
+                .findByIdAndUser_IdAndDeletedAtIsNull(
+                        clothesId,
+                        userId
+                )
                 .orElseThrow(() -> new ClothesException(ClothesErrorCode.CLOTHES_NOT_FOUND));
     }
 
@@ -137,30 +141,36 @@ public class ClothesService {
             Pageable pageable
     ) {
         if (category != null && style != null) {
-            return clothesRepository.findByUser_IdAndCategoryAndStyle(
-                    userId,
-                    category,
-                    style,
-                    pageable
-            );
+            return clothesRepository
+                    .findByUser_IdAndCategoryAndStyleAndDeletedAtIsNull(
+                            userId,
+                            category,
+                            style,
+                            pageable
+                    );
         }
 
         if (category != null) {
-            return clothesRepository.findByUser_IdAndCategory(
-                    userId,
-                    category,
-                    pageable
-            );
+            return clothesRepository
+                    .findByUser_IdAndCategoryAndDeletedAtIsNull(
+                            userId,
+                            category,
+                            pageable
+                    );
         }
 
         if (style != null) {
-            return clothesRepository.findByUser_IdAndStyle(
-                    userId,
-                    style,
-                    pageable
-            );
+            return clothesRepository
+                    .findByUser_IdAndStyleAndDeletedAtIsNull(
+                            userId,
+                            style,
+                            pageable
+                    );
         }
 
-        return clothesRepository.findByUser_Id(userId, pageable);
+        return clothesRepository.findByUser_IdAndDeletedAtIsNull(
+                userId,
+                pageable
+        );
     }
 }

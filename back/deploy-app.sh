@@ -27,6 +27,7 @@ set +a
 [[ -n "${AWS_REGION:-}" ]] || fail "AWS_REGION is not configured"
 [[ -n "${AWS_ACCOUNT_ID:-}" ]] || fail "AWS_ACCOUNT_ID is not configured"
 [[ -n "${ECR_REPO:-}" ]] || fail "ECR_REPO is not configured"
+[[ -n "${REMBG_ECR_REPO:-}" ]] || fail "REMBG_ECR_REPO is not configured"
 
 if [[ "$AWS_ACCOUNT_ID" == "YOUR_AWS_ACCOUNT_ID" ]]; then
   fail "AWS_ACCOUNT_ID still has the example value"
@@ -34,25 +35,19 @@ fi
 
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 ECR_IMAGE="${ECR_REGISTRY}/${ECR_REPO}:latest"
+REMBG_ECR_IMAGE="${ECR_REGISTRY}/${REMBG_ECR_REPO}:latest"
 
 export ECR_IMAGE
-
-log "INFO" "Pull latest backend source"
-git fetch origin backend
-git switch backend
-git pull --ff-only origin backend
+export REMBG_ECR_IMAGE
 
 log "INFO" "Login to ECR"
-aws ecr get-login-password --region "$AWS_REGION" |
-  docker login \
+timeout 30 aws ecr get-login-password --region "$AWS_REGION" |
+  timeout 30 docker login \
     --username AWS \
     --password-stdin "$ECR_REGISTRY"
 
-log "INFO" "Remove unused images before pulling the latest image"
-docker image prune -af
-
 log "INFO" "Pull latest application image"
-docker pull "$ECR_IMAGE"
+timeout 180 docker pull "$ECR_IMAGE"
 
 log "INFO" "Recreate application container"
 docker compose \
@@ -76,6 +71,6 @@ docker compose \
   ps
 
 log "INFO" "Remove images unused after deployment"
-docker image prune -af
+docker image prune -f
 
-log "INFO" "Deployment complete"
+log "INFO" "Application deployment complete"

@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "clothes")
@@ -55,7 +56,7 @@ public class Clothes extends BaseEntity {
     @Column(length = 50)
     private String brand;
 
-    @Column(length = 50)
+    @Column(length = 255)
     private String material;
 
     @Column(columnDefinition = "SMALLINT")
@@ -67,6 +68,8 @@ public class Clothes extends BaseEntity {
     private Integer wearCount;
 
     private LocalDate lastWornAt;
+
+    private LocalDateTime deletedAt;
 
     public void update(
             Category category,
@@ -148,5 +151,9 @@ public class Clothes extends BaseEntity {
                 wornDate.isAfter(this.lastWornAt)) {
             this.lastWornAt = wornDate;
         }
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

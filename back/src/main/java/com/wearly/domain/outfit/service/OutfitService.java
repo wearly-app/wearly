@@ -58,10 +58,11 @@ public class OutfitService {
             throw new OutfitException(OutfitErrorCode.DUPLICATE_CLOTHES);
         }
 
-        List<Clothes> clothesList = clothesRepository.findAllByIdInAndUser_Id(
-                uniqueClothesIds,
-                userId
-        );
+        List<Clothes> clothesList = clothesRepository
+                .findAllByIdInAndUser_IdAndDeletedAtIsNull(
+                        uniqueClothesIds,
+                        userId
+                );
 
         if (clothesList.size() != uniqueClothesIds.size()) {
             throw new OutfitException(
@@ -102,7 +103,7 @@ public class OutfitService {
 
     public OutfitResponse getOutfit(Long userId, Long outfitId) {
         Outfits outfit = outfitRepository
-                .findByIdAndUser_Id(outfitId, userId)
+                .findByIdAndUser_IdAndDeletedAtIsNull(outfitId, userId)
                 .orElseThrow(() ->
                         new OutfitException(OutfitErrorCode.OUTFIT_NOT_FOUND)
                 );
@@ -137,13 +138,15 @@ public class OutfitService {
         Slice<Outfits> outfitSlice;
 
         if (favorite == null) {
-            outfitSlice = outfitRepository.findByUser_Id(userId, pageable);
+            outfitSlice = outfitRepository
+                    .findByUser_IdAndDeletedAtIsNull(userId, pageable);
         } else {
-            outfitSlice = outfitRepository.findByUser_IdAndIsFavorite(
-                    userId,
-                    favorite,
-                    pageable
-            );
+            outfitSlice = outfitRepository
+                    .findByUser_IdAndIsFavoriteAndDeletedAtIsNull(
+                            userId,
+                            favorite,
+                            pageable
+                    );
         }
 
         List<Outfits> outfits = outfitSlice.getContent();
@@ -201,7 +204,7 @@ public class OutfitService {
             OutfitUpdateRequest request
     ) {
         Outfits outfit = outfitRepository
-                .findByIdAndUser_Id(outfitId, userId)
+                .findByIdAndUser_IdAndDeletedAtIsNull(outfitId, userId)
                 .orElseThrow(() ->
                         new OutfitException(OutfitErrorCode.OUTFIT_NOT_FOUND)
                 );
@@ -243,13 +246,12 @@ public class OutfitService {
     @Transactional
     public void deleteOutfit(Long userId, Long outfitId) {
         Outfits outfit = outfitRepository
-                .findByIdAndUser_Id(outfitId, userId)
+                .findByIdAndUser_IdAndDeletedAtIsNull(outfitId, userId)
                 .orElseThrow(() ->
                         new OutfitException(OutfitErrorCode.OUTFIT_NOT_FOUND)
                 );
 
-        outfitItemsRepository.deleteByOutfits_Id(outfitId);
-        outfitRepository.delete(outfit);
+        outfit.softDelete();
     }
 
     @Transactional
@@ -258,7 +260,7 @@ public class OutfitService {
             Long outfitId
     ) {
         Outfits outfit = outfitRepository
-                .findByIdAndUser_Id(outfitId, userId)
+                .findByIdAndUser_IdAndDeletedAtIsNull(outfitId, userId)
                 .orElseThrow(() ->
                         new OutfitException(OutfitErrorCode.OUTFIT_NOT_FOUND)
                 );
@@ -289,10 +291,11 @@ public class OutfitService {
         }
 
         List<Clothes> clothesList =
-                clothesRepository.findAllByIdInAndUser_Id(
-                        uniqueClothesIds,
-                        userId
-                );
+                clothesRepository
+                        .findAllByIdInAndUser_IdAndDeletedAtIsNull(
+                                uniqueClothesIds,
+                                userId
+                        );
 
         if (clothesList.size() != uniqueClothesIds.size()) {
             throw new OutfitException(

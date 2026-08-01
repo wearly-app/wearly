@@ -2,11 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:front/features/user/closet/widgets/add_item_sheets.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
+import 'package:front/services/api_service.dart';
 
 // Closet Home Page
 // ──────────────────────────────────────────────
-class ClosetHomePage extends StatelessWidget {
+class ClosetHomePage extends StatefulWidget {
   const ClosetHomePage({super.key});
+
+  @override
+  State<ClosetHomePage> createState() => _ClosetHomePageState();
+}
+
+class _ClosetHomePageState extends State<ClosetHomePage> {
+  final ApiService _apiService = ApiService();
+  UserModel? _userProfile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final profile = await _apiService.getUserProfile();
+
+    if (!mounted) return;
+
+    setState(() {
+      _userProfile = profile;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +61,11 @@ class ClosetHomePage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            '안녕하세요, 규민님',
-            style: TextStyle(
+          Text(
+            _userProfile?.name.isNotEmpty == true
+                ? '안녕하세요, ${_userProfile!.name}님'
+                : '안녕하세요',
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
               color: Color(0xFF1A1A1A),

@@ -10,7 +10,7 @@ import 'package:front/screens/login_screen.dart';
 import 'package:front/screens/splash_screen.dart';
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/closet', // Starts directly on the dashboard
+  initialLocation: '/splash',
   routes: [
     GoRoute(
       path: '/splash',

@@ -4,7 +4,11 @@ import com.wearly.domain.clothes.dto.response.ClothesWearHistoryResponse;
 import com.wearly.domain.clothes.exception.ClothesErrorCode;
 import com.wearly.domain.clothes.exception.ClothesException;
 import com.wearly.domain.clothes.repository.ClothesRepository;
+import com.wearly.domain.outfit.dto.response.DailyWearHistoryResponse;
+import com.wearly.domain.outfit.dto.response.MonthlyWearHistoryResponse;
+import com.wearly.domain.outfit.dto.response.OutfitClothesResponse;
 import com.wearly.domain.outfit.dto.response.OutfitWearResponse;
+import com.wearly.domain.outfit.dto.response.WearHistoryDayResponse;
 import com.wearly.domain.outfit.entity.OutfitHistory;
 import com.wearly.domain.outfit.entity.OutfitHistoryItem;
 import com.wearly.domain.outfit.entity.OutfitItems;
@@ -16,6 +20,7 @@ import com.wearly.domain.outfit.repository.OutfitHistoryRepository;
 import com.wearly.domain.outfit.repository.OutfitItemsRepository;
 import com.wearly.domain.outfit.repository.OutfitRepository;
 import com.wearly.global.common.response.SliceResponse;
+import com.wearly.infra.s3.S3ImageStorage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
@@ -25,8 +30,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +48,7 @@ public class OutfitHistoryService {
     private final OutfitHistoryRepository outfitHistoryRepository;
     private final OutfitHistoryItemRepository outfitHistoryItemRepository;
     private final ClothesRepository clothesRepository;
+    private final S3ImageStorage s3ImageStorage;
 
     @Transactional
     public OutfitWearResponse wearOutfit(Long userId, Long outfitId) {
@@ -107,6 +116,81 @@ public class OutfitHistoryService {
                 .toList();
 
         return SliceResponse.of(responses, historySlice);
+    }
+
+    public MonthlyWearHistoryResponse getMonthlyWearHistory(
+            Long userId,
+            int year,
+            int month
+    ) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+
+        List<OutfitHistory> histories = outfitHistoryRepository
+                .findByUser_IdAndWornDateBetween(
+                        userId,
+                        yearMonth.atDay(1),
+                        yearMonth.atEndOfMonth()
+                );
+
+        Map<LocalDate, Long> countByDate = histories.stream()
+                .collect(Collectors.groupingBy(
+                        OutfitHistory::getWornDate,
+                        Collectors.counting()
+                ));
+
+        List<WearHistoryDayResponse> days = countByDate.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> WearHistoryDayResponse.of(
+                        entry.getKey(),
+                        entry.getValue().intValue()
+                ))
+                .toList();
+
+        return MonthlyWearHistoryResponse.of(year, month, days);
+    }
+
+    public List<DailyWearHistoryResponse> getDailyWearHistory(
+            Long userId,
+            LocalDate wornDate
+    ) {
+        List<OutfitHistory> histories = outfitHistoryRepository
+                .findByUser_IdAndWornDateOrderByIdDesc(userId, wornDate);
+
+        if (histories.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> historyIds = histories.stream()
+                .map(OutfitHistory::getId)
+                .toList();
+
+        Map<Long, List<OutfitHistoryItem>> itemsByHistoryId =
+                outfitHistoryItemRepository.findByOutfitHistory_IdIn(historyIds)
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                item -> item.getOutfitHistory().getId()
+                        ));
+
+        return histories.stream()
+                .map(history -> DailyWearHistoryResponse.from(
+                        history,
+                        toClothesResponses(
+                                itemsByHistoryId.getOrDefault(history.getId(), List.of())
+                        )
+                ))
+                .toList();
+    }
+
+    private List<OutfitClothesResponse> toClothesResponses(
+            List<OutfitHistoryItem> historyItems
+    ) {
+        return historyItems.stream()
+                .map(OutfitHistoryItem::getClothes)
+                .map(clothes -> OutfitClothesResponse.from(
+                        clothes,
+                        s3ImageStorage.getUrl(clothes.getImageUrl())
+                ))
+                .toList();
     }
 
     private void validateNotWornToday(Long outfitId, LocalDate wornDate) {

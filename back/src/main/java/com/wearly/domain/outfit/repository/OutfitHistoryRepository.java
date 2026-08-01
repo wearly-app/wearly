@@ -1,6 +1,7 @@
 package com.wearly.domain.outfit.repository;
 
 import com.wearly.domain.outfit.entity.OutfitHistory;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -14,6 +15,12 @@ public interface OutfitHistoryRepository extends JpaRepository<OutfitHistory, Lo
             Long userId,
             LocalDate startDate,
             LocalDate endDate
+    );
+
+    @EntityGraph(attributePaths = {"outfits"})
+    List<OutfitHistory> findByUser_IdAndWornDateOrderByIdDesc(
+            Long userId,
+            LocalDate wornDate
     );
 
     List<OutfitHistory> findByOutfits_Id(Long outfitId);

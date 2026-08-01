@@ -6,6 +6,8 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface OutfitHistoryItemRepository
         extends JpaRepository<OutfitHistoryItem, Long> {
 
@@ -17,4 +19,7 @@ public interface OutfitHistoryItemRepository
             Long clothesId,
             Pageable pageable
     );
+
+    @EntityGraph(attributePaths = {"clothes"})
+    List<OutfitHistoryItem> findByOutfitHistory_IdIn(List<Long> outfitHistoryIds);
 }

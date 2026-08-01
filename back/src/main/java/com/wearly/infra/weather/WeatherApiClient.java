@@ -2,6 +2,8 @@ package com.wearly.infra.weather;
 
 import com.wearly.domain.weather.exception.WeatherErrorCode;
 import com.wearly.domain.weather.exception.WeatherException;
+import com.wearly.infra.weather.dto.OpenWeatherAirPollutionResponse;
+import com.wearly.infra.weather.dto.OpenWeatherForecastResponse;
 import com.wearly.infra.weather.dto.OpenWeatherResponse;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
@@ -19,6 +21,8 @@ import java.time.Duration;
 public class WeatherApiClient {
 
     private static final String CURRENT_WEATHER_URI = "/data/2.5/weather";
+    private static final String FORECAST_URI = "/data/2.5/forecast";
+    private static final String AIR_POLLUTION_URI = "/data/2.5/air_pollution";
 
     private final WebClient webClient;
     private final WeatherApiProperties weatherApiProperties;
@@ -46,9 +50,47 @@ public class WeatherApiClient {
             Double latitude,
             Double longitude
     ) {
+        return request(
+                CURRENT_WEATHER_URI,
+                latitude,
+                longitude,
+                OpenWeatherResponse.class
+        );
+    }
+
+    public OpenWeatherForecastResponse getForecast(
+            Double latitude,
+            Double longitude
+    ) {
+        return request(
+                FORECAST_URI,
+                latitude,
+                longitude,
+                OpenWeatherForecastResponse.class
+        );
+    }
+
+    public OpenWeatherAirPollutionResponse getAirPollution(
+            Double latitude,
+            Double longitude
+    ) {
+        return request(
+                AIR_POLLUTION_URI,
+                latitude,
+                longitude,
+                OpenWeatherAirPollutionResponse.class
+        );
+    }
+
+    private <T> T request(
+            String uri,
+            Double latitude,
+            Double longitude,
+            Class<T> responseType
+    ) {
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(CURRENT_WEATHER_URI)
+                        .path(uri)
                         .queryParam("lat", latitude)
                         .queryParam("lon", longitude)
                         .queryParam("appid", weatherApiProperties.getKey())
@@ -80,7 +122,7 @@ public class WeatherApiClient {
                                 )
                         )
                 )
-                .bodyToMono(OpenWeatherResponse.class)
+                .bodyToMono(responseType)
                 .block();
     }
 }

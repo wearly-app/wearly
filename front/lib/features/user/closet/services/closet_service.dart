@@ -5,23 +5,29 @@ class ClosetService {
   ClosetService._();
   static final ClosetService instance = ClosetService._();
 
-  final ValueNotifier<List<ClothingItem>> wardrobeNotifier = ValueNotifier<List<ClothingItem>>([]);
-  final ValueNotifier<List<CanvasItem>> canvasItemsNotifier = ValueNotifier<List<CanvasItem>>([]);
-  final ValueNotifier<List<SavedOutfit>> savedOutfitsNotifier = ValueNotifier<List<SavedOutfit>>([]);
-  final ValueNotifier<List<WornRecord>> wornHistoryNotifier = ValueNotifier<List<WornRecord>>([]);
+  final ValueNotifier<List<ClothingItem>> wardrobeNotifier =
+      ValueNotifier<List<ClothingItem>>([]);
+  final ValueNotifier<List<CanvasItem>> canvasItemsNotifier =
+      ValueNotifier<List<CanvasItem>>([]);
+  final ValueNotifier<List<SavedOutfit>> savedOutfitsNotifier =
+      ValueNotifier<List<SavedOutfit>>([]);
+  final ValueNotifier<List<WornRecord>> wornHistoryNotifier =
+      ValueNotifier<List<WornRecord>>([]);
 
-  final ValueNotifier<List<String>> outfitCategoriesNotifier = ValueNotifier<List<String>>([
-    '캐주얼', '미니멀', '스트릿', '아메카지', '스포티', '격식', '데이트'
-  ]);
+  final ValueNotifier<List<String>> outfitCategoriesNotifier =
+      ValueNotifier<List<String>>(
+          ['캐주얼', '미니멀', '스트릿', '아메카지', '스포티', '격식', '데이트']);
 
   void addOutfitCategory(String category) {
     if (!outfitCategoriesNotifier.value.contains(category)) {
-      outfitCategoriesNotifier.value = List.from(outfitCategoriesNotifier.value)..add(category);
+      outfitCategoriesNotifier.value = List.from(outfitCategoriesNotifier.value)
+        ..add(category);
     }
   }
 
   void removeOutfitCategory(String category) {
-    outfitCategoriesNotifier.value = outfitCategoriesNotifier.value.where((c) => c != category).toList();
+    outfitCategoriesNotifier.value =
+        outfitCategoriesNotifier.value.where((c) => c != category).toList();
     // Re-map outfits under deleted category to '캐주얼'
     savedOutfitsNotifier.value = savedOutfitsNotifier.value.map((o) {
       if (o.category == category) {
@@ -32,7 +38,8 @@ class ClosetService {
   }
 
   void removeOutfit(SavedOutfit outfit) {
-    savedOutfitsNotifier.value = savedOutfitsNotifier.value.where((o) => o.id != outfit.id).toList();
+    savedOutfitsNotifier.value =
+        savedOutfitsNotifier.value.where((o) => o.id != outfit.id).toList();
   }
 
   void wearOutfit(SavedOutfit outfit) {
@@ -43,15 +50,17 @@ class ClosetService {
     }
     // Update wardrobe status
     wardrobeNotifier.value = List.from(wardrobeNotifier.value);
-    
+
     // Insert new worn history record
     wornHistoryNotifier.value = List.from(wornHistoryNotifier.value)
-      ..insert(0, WornRecord(
-        date: now,
-        outfit: outfit,
-        weather: '☀️ 맑음',
-        temp: 27,
-      ));
+      ..insert(
+          0,
+          WornRecord(
+            date: now,
+            outfit: outfit,
+            weather: '☀️ 맑음',
+            temp: 27,
+          ));
   }
 
   void initializeDemoData() {
@@ -205,21 +214,6 @@ class ClosetService {
         situation: const ['캐주얼', '아메카지'],
         thickness: 3,
         colorHex: '#1E1E24',
-        styleLevel: 3,
-        wearCount: 0,
-      ),
-      ClothingItem(
-        id: '13',
-        name: '마초 골지 헨리넥 셔츠',
-        category: '상의',
-        brand: '마초',
-        assetPath: 'assets/macho_henley.png',
-        fallbackColor: const Color(0xFF4A2F22),
-        fallbackIcon: Icons.checkroom,
-        seasons: const ['봄', '가을', '겨울'],
-        situation: const ['캐주얼', '아메카지'],
-        thickness: 2,
-        colorHex: '#4A2F22',
         styleLevel: 3,
         wearCount: 0,
       ),
@@ -430,8 +424,21 @@ class ClosetService {
     wardrobeNotifier.value = List.from(wardrobeNotifier.value)..add(item);
   }
 
+  void replaceClothingItems(List<ClothingItem> items) {
+    wardrobeNotifier.value = List.from(items);
+  }
+
+  void appendClothingItems(List<ClothingItem> items) {
+    final merged = <String, ClothingItem>{
+      for (final item in wardrobeNotifier.value) item.id: item,
+      for (final item in items) item.id: item,
+    };
+    wardrobeNotifier.value = merged.values.toList();
+  }
+
   void removeClothingItem(String id) {
-    wardrobeNotifier.value = wardrobeNotifier.value.where((w) => w.id != id).toList();
+    wardrobeNotifier.value =
+        wardrobeNotifier.value.where((w) => w.id != id).toList();
   }
 
   void markAsWorn(ClothingItem item) {
@@ -441,11 +448,25 @@ class ClosetService {
   }
 
   void saveOutfit(SavedOutfit outfit) {
-    savedOutfitsNotifier.value = List.from(savedOutfitsNotifier.value)..add(outfit);
+    savedOutfitsNotifier.value = List.from(savedOutfitsNotifier.value)
+      ..add(outfit);
+  }
+
+  void replaceSavedOutfits(List<SavedOutfit> outfits) {
+    savedOutfitsNotifier.value = List.from(outfits);
+  }
+
+  void appendSavedOutfits(List<SavedOutfit> outfits) {
+    final merged = <String, SavedOutfit>{
+      for (final outfit in savedOutfitsNotifier.value) outfit.id: outfit,
+      for (final outfit in outfits) outfit.id: outfit,
+    };
+    savedOutfitsNotifier.value = merged.values.toList();
   }
 
   void addWornRecord(WornRecord record) {
-    wornHistoryNotifier.value = List.from(wornHistoryNotifier.value)..add(record);
+    wornHistoryNotifier.value = List.from(wornHistoryNotifier.value)
+      ..add(record);
   }
 
   void clearCanvas() {
@@ -457,10 +478,13 @@ class ClosetService {
   }
 
   void removeCanvasItem(String itemId) {
-    canvasItemsNotifier.value = canvasItemsNotifier.value.where((x) => x.id != itemId).toList();
+    canvasItemsNotifier.value =
+        canvasItemsNotifier.value.where((x) => x.id != itemId).toList();
   }
 
   void updateCanvasItem(CanvasItem updatedItem) {
-    canvasItemsNotifier.value = canvasItemsNotifier.value.map((x) => x.id == updatedItem.id ? updatedItem : x).toList();
+    canvasItemsNotifier.value = canvasItemsNotifier.value
+        .map((x) => x.id == updatedItem.id ? updatedItem : x)
+        .toList();
   }
 }

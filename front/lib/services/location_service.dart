@@ -19,10 +19,40 @@ class LocationResult {
 class LocationService {
   static const double fallbackLatitude = 37.2636;
   static const double fallbackLongitude = 127.0286;
+  static const Duration cacheDuration = Duration(minutes: 15);
+
+  static LocationResult? _cachedResult;
+  static DateTime? _cachedAt;
+  static Future<LocationResult>? _activeRequest;
 
   const LocationService();
 
-  Future<LocationResult> getCurrentLocation() async {
+  Future<LocationResult> getCurrentLocation({bool forceRefresh = false}) {
+    final cachedResult = _cachedResult;
+    final cachedAt = _cachedAt;
+    final cacheIsValid = cachedResult != null &&
+        cachedAt != null &&
+        DateTime.now().difference(cachedAt) < cacheDuration;
+
+    if (!forceRefresh && cacheIsValid) {
+      return Future.value(cachedResult);
+    }
+
+    if (!forceRefresh && _activeRequest != null) {
+      return _activeRequest!;
+    }
+
+    final request = _resolveCurrentLocation().then((result) {
+      _cachedResult = result;
+      _cachedAt = DateTime.now();
+      return result;
+    }).whenComplete(() => _activeRequest = null);
+
+    _activeRequest = request;
+    return request;
+  }
+
+  Future<LocationResult> _resolveCurrentLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {

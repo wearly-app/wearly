@@ -29,6 +29,7 @@ public class ProductCrawlerService {
     private static final int CONNECTION_TIMEOUT_MILLIS = 7000;
     private static final int MAX_BODY_TEXT_LENGTH = 15000;
     private static final int MAX_RESPONSE_BODY_SIZE = 5 * 1024 * 1024;
+    private static final char NAME_DELIMITER = '|';
     private static final String MACHO_HOST = "macho707.com";
     private static final String UNIQLO_HOST = "uniqlo.com";
     private static final Set<String> PRODUCT_TYPES = Set.of(
@@ -66,6 +67,11 @@ public class ProductCrawlerService {
             extractUniqloMaterial(document, targetUrl, result);
             extractBodyText(document, result);
 
+            result.put(
+                    "name",
+                    removeNameSuffix(result.get("name"))
+            );
+
             log.info(
                     "Product detail crawled. url: {}, name: {}, brand: {}, material: {}",
                     targetUrl,
@@ -84,6 +90,29 @@ public class ProductCrawlerService {
 
             return null;
         }
+    }
+
+    // og:title이 "제품명 | 쇼핑몰명" 형태로 오는 경우가 있어서
+    // 구분자 뒤쪽은 제품명이 아니므로 잘라낸다.
+    private String removeNameSuffix(String name) {
+        if (name == null) {
+            return "";
+        }
+
+        int delimiterIndex = name.indexOf(NAME_DELIMITER);
+
+        if (delimiterIndex < 0) {
+            return name.trim();
+        }
+
+        String trimmedName = name.substring(0, delimiterIndex).trim();
+
+        // "| 제품명" 처럼 앞쪽이 비어 있으면 이름을 통째로 잃으므로 원본을 쓴다.
+        if (trimmedName.isBlank()) {
+            return name.trim();
+        }
+
+        return trimmedName;
     }
 
     private boolean isSupportedUrl(String targetUrl) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:front/features/user/closet/widgets/add_item_sheets.dart';
 import 'package:front/features/user/closet/pages/closet_home_page.dart';
 import 'package:front/features/user/closet/pages/codi_calendar_page.dart';
+import 'package:front/services/location_service.dart';
 
 class ClosetMainPage extends StatefulWidget {
   const ClosetMainPage({super.key});
@@ -12,6 +13,17 @@ class ClosetMainPage extends StatefulWidget {
 
 class _ClosetMainPageState extends State<ClosetMainPage> {
   int _currentIndex = 0;
+  final LocationService _locationService = const LocationService();
+
+  @override
+  void initState() {
+    super.initState();
+    _prepareLocation();
+  }
+
+  Future<void> _prepareLocation() async {
+    await _locationService.getCurrentLocation();
+  }
 
   @override
   Widget build(BuildContext context) {

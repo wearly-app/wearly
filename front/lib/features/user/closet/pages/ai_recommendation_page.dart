@@ -5,6 +5,7 @@ import 'package:front/features/user/closet/services/closet_service.dart';
 import 'package:front/features/user/closet/services/recommendation_service.dart';
 import 'package:front/features/user/closet/pages/codi_maker_page.dart';
 import 'package:front/services/api_service.dart';
+import 'package:front/services/location_service.dart';
 
 // ──────────────────────────────────────────────
 // 1. AI Loading Page (Full page transition)
@@ -170,20 +171,21 @@ class RecommendationResultPage extends StatefulWidget {
 
 class _RecommendationResultPageState extends State<RecommendationResultPage> {
   static const double _demoTemperature = 28;
-  static const double _demoLatitude = 37.2636;
-  static const double _demoLongitude = 127.0286;
   final RecommendationService _recommendationService =
       const RecommendationService();
   final ApiService _apiService = ApiService();
+  final LocationService _locationService = const LocationService();
   bool _isMainLoading = false;
   bool _isBottomLoading = false;
   bool _isApiLoading = true;
   bool _usingServerRecommendations = false;
+  bool _usingFallbackLocation = false;
   int _mainIndex = 0;
   int _bottomIndex = 0;
   double _currentTemperature = _demoTemperature;
   String _weatherCondition = '⛅';
   String? _apiErrorMessage;
+  String _locationMessage = '현재 위치를 확인하고 있습니다.';
   late List<ClothingRecommendation> _mainRecommendations;
   late List<ClothingRecommendation> _bottomRecommendations;
 
@@ -207,9 +209,17 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
   }
 
   Future<void> _loadServerRecommendations() async {
+    final location = await _locationService.getCurrentLocation();
+
+    if (!mounted) return;
+    setState(() {
+      _locationMessage = location.message;
+      _usingFallbackLocation = location.isFallback;
+    });
+
     final response = await _apiService.getRecommendations(
-      latitude: _demoLatitude,
-      longitude: _demoLongitude,
+      latitude: location.latitude,
+      longitude: location.longitude,
       style: _styleApiValue(widget.selectedStyle),
     );
 
@@ -344,7 +354,7 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
   }
 
   void _triggerMainRescueTargetSwap() {
-    if (_isMainLoading) return;
+    if (_isMainLoading || _mainRecommendations.isEmpty) return;
     setState(() {
       _isMainLoading = true;
     });
@@ -382,7 +392,7 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
   }
 
   void _triggerBottomGarmentSwap() {
-    if (_isBottomLoading) return;
+    if (_isBottomLoading || _bottomRecommendations.isEmpty) return;
     setState(() {
       _isBottomLoading = true;
     });
@@ -398,6 +408,8 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
   }
 
   void _navigateToCanvas() {
+    if (_mainRecommendations.isEmpty || _bottomRecommendations.isEmpty) return;
+
     final mainItem = _mainRecommendations[_mainIndex].item;
     final bottomItem = _bottomRecommendations[_bottomIndex].item;
 
@@ -413,8 +425,66 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
     );
   }
 
+  Widget _buildUnavailableRecommendationPage() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF9FAFB),
+        title: const Text('AI 맞춤 구출 코디 제안'),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isApiLoading)
+                  const CircularProgressIndicator(color: Colors.purple)
+                else
+                  Icon(
+                    Icons.checkroom_outlined,
+                    size: 56,
+                    color: Colors.grey.shade400,
+                  ),
+                const SizedBox(height: 18),
+                Text(
+                  _isApiLoading
+                      ? '현재 위치와 추천 결과를 불러오고 있습니다.'
+                      : '추천할 상의와 하의가 없습니다.',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _isApiLoading
+                      ? _locationMessage
+                      : '${_apiErrorMessage ?? '옷장에 상의와 하의를 등록한 뒤 다시 시도해 주세요.'}\n$_locationMessage',
+                  style: const TextStyle(color: Colors.grey, height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_mainRecommendations.isEmpty || _bottomRecommendations.isEmpty) {
+      return _buildUnavailableRecommendationPage();
+    }
+
     final currentMainRecommendation = _mainRecommendations[_mainIndex];
     final currentBottomRecommendation = _bottomRecommendations[_bottomIndex];
     final currentMain = currentMainRecommendation.item;
@@ -597,7 +667,9 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                           _isApiLoading
                               ? '서버 연결 중'
                               : _usingServerRecommendations
-                                  ? '서버 추천'
+                                  ? _usingFallbackLocation
+                                      ? '서버 추천 · 수원 기준'
+                                      : '서버 추천 · 현재 위치'
                                   : '로컬 추천',
                           style: TextStyle(
                             fontSize: 9,
@@ -612,8 +684,8 @@ class _RecommendationResultPageState extends State<RecommendationResultPage> {
                     const SizedBox(height: 4),
                     Text(
                       _isApiLoading
-                          ? '서버 추천 API를 요청하고 있습니다. 응답 전까지 로컬 추천을 표시합니다.'
-                          : '${_apiErrorMessage == null ? '' : '$_apiErrorMessage\n'}${_recommendationReport(currentMainRecommendation, currentBottomRecommendation)}',
+                          ? '$_locationMessage 추천 API 응답 전까지 로컬 추천을 표시합니다.'
+                          : '$_locationMessage\n${_apiErrorMessage == null ? '' : '$_apiErrorMessage\n'}${_recommendationReport(currentMainRecommendation, currentBottomRecommendation)}',
                       style: const TextStyle(
                         fontSize: 10,
                         height: 1.4,

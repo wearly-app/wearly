@@ -4,6 +4,7 @@ import 'package:front/features/user/closet/widgets/add_item_sheets.dart';
 import 'package:front/features/user/closet/services/closet_service.dart';
 import 'package:front/services/api_service.dart';
 import 'package:front/features/user/closet/models/recommendation_response.dart';
+import 'package:front/services/location_service.dart';
 
 // Closet Home Page
 // ──────────────────────────────────────────────
@@ -16,6 +17,7 @@ class ClosetHomePage extends StatefulWidget {
 
 class _ClosetHomePageState extends State<ClosetHomePage> {
   final ApiService _apiService = ApiService();
+  final LocationService _locationService = const LocationService();
   UserModel? _userProfile;
   RecommendationWeather? _weatherData;
   bool _isWeatherLoading = false;
@@ -40,14 +42,27 @@ class _ClosetHomePageState extends State<ClosetHomePage> {
     }
 
     setState(() { _isWeatherLoading = true; });
-    // 서울시청 기본 좌표를 통한 추천 날씨 데이터 호출
-    final response = await _apiService.getRecommendations(latitude: 37.5665, longitude: 126.9780, style: 'CASUAL', limit: 1);
-    if (mounted) {
-      setState(() {
-        _weatherData = response?.weather;
-        closetService.cachedWeather = response?.weather;
-        _isWeatherLoading = false;
-      });
+    
+    try {
+      final position = await _locationService.getCurrentLocation();
+      final response = await _apiService.getRecommendations(latitude: position.latitude, longitude: position.longitude, style: 'CASUAL', limit: 1);
+      if (mounted) {
+        setState(() {
+          _weatherData = response?.weather;
+          closetService.cachedWeather = response?.weather;
+          _isWeatherLoading = false;
+        });
+      }
+    } catch (e) {
+      // 위치 권한 거부 등 에러 시 기본값(서울) 사용
+      final response = await _apiService.getRecommendations(latitude: 37.5665, longitude: 126.9780, style: 'CASUAL', limit: 1);
+      if (mounted) {
+        setState(() {
+          _weatherData = response?.weather;
+          closetService.cachedWeather = response?.weather;
+          _isWeatherLoading = false;
+        });
+      }
     }
   }
 

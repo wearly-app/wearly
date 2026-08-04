@@ -104,8 +104,8 @@ class _SaveOutfitPageState extends State<SaveOutfitPage> {
       return;
     }
 
-    final saveDate = DateTime.tryParse(created['createdAt'] as String? ?? '') ??
-        DateTime.now();
+    final saveDate = (DateTime.tryParse(created['createdAt'] as String? ?? '') ??
+        DateTime.now()).toLocal();
     final createdName = created['name'] as String?;
 
     final newOutfit = SavedOutfit(

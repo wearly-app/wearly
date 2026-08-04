@@ -12,9 +12,8 @@ class CodiCalendarPage extends StatefulWidget {
 }
 
 class _CodiCalendarPageState extends State<CodiCalendarPage> {
-  DateTime _selectedDate = DateTime(2026, 6, 6); // Demo day June 6, 2026
-  DateTime _currentMonth =
-      DateTime(2026, 6); // Current displayed month in calendar
+  DateTime _selectedDate = DateTime.now();
+  DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
   Widget build(BuildContext context) {
@@ -465,11 +464,15 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                           child: cloth.imageBytes != null
                                               ? Image.memory(cloth.imageBytes!,
                                                   fit: BoxFit.contain)
-                                              : cloth.assetPath != null
-                                                  ? Image.asset(
-                                                      cloth.assetPath!,
+                                              : cloth.imageUrl != null
+                                                  ? Image.network(
+                                                      cloth.imageUrl!,
                                                       fit: BoxFit.contain)
-                                                  : Container(
+                                                  : cloth.assetPath != null
+                                                      ? Image.asset(
+                                                          cloth.assetPath!,
+                                                          fit: BoxFit.contain)
+                                                      : Container(
                                                       color: cloth.fallbackColor
                                                           .withValues(
                                                               alpha: 0.15),

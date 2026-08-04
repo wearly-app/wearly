@@ -294,18 +294,50 @@ class _ClosetHomePageState extends State<ClosetHomePage> {
             ),
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildWeatherDetailItem(Icons.water_drop_outlined, '습도', '${w.humidity ?? 0}%'),
-                  _buildWeatherDetailItem(Icons.air, '풍속', '${w.windSpeed ?? 0}m/s'),
-                  _buildWeatherDetailItem(Icons.umbrella_outlined, '강수확률', '${w.maxRainProbability ?? 0}%'),
+                color: Colors.white.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
                 ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _getSmartWeatherComment(w).split('\n').asMap().entries.map((entry) {
+                  final isLast = entry.key == _getSmartWeatherComment(w).split('\n').length - 1;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: isLast ? 0 : 8.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 1.5),
+                          child: Icon(Icons.auto_awesome, size: 16, color: Color(0xFF5E35B1)), // Deep purple sparkle
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            entry.value,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D3142),
+                              height: 1.4,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ],
@@ -314,30 +346,39 @@ class _ClosetHomePageState extends State<ClosetHomePage> {
     );
   }
 
-  Widget _buildWeatherDetailItem(IconData icon, String label, String value) {
-    return Column(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey.shade700),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2D3142),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
+  String _getSmartWeatherComment(RecommendationWeather w) {
+    List<String> messages = [];
+
+    if (w.willRainToday == true || w.condition.contains('RAIN') || (w.maxRainProbability ?? 0) >= 40) {
+      messages.add('비 소식이 있어요. 우산을 챙기세요! ☔');
+    } else if (w.condition.contains('SNOW')) {
+      messages.add('눈이 와요. 빙판길 조심하시고 따뜻하게 입으세요! ❄️');
+    }
+
+    if (w.dustGrade == 'VERY_BAD') {
+      messages.add('미세먼지가 매우 나빠요. KF94 마스크 필수! 😷');
+    } else if (w.dustGrade == 'BAD') {
+      messages.add('미세먼지가 나빠요. 마스크를 챙기세요. 😷');
+    }
+
+    final feelsLike = w.feelsLikeTemperature ?? w.temperature;
+    if (feelsLike >= 33) {
+      messages.add('폭염이에요! 린넨 등 얇고 시원한 옷을 추천해요. 🥵');
+    } else if (feelsLike >= 28) {
+      messages.add('더운 날씨예요. 반팔 등 가벼운 옷차림이 좋겠어요. ☀️');
+    } else if (feelsLike <= 5) {
+      messages.add('체감 기온이 5도 이하로 춥습니다. 패딩을 챙기세요! 🥶');
+    } else if (w.temperature - feelsLike >= 3) {
+      messages.add('바람이 불어 쌀쌀해요. 겉옷을 걸쳐주세요. 🌬️');
+    } else if (w.temperature >= 26 && (w.humidity ?? 0) >= 75) {
+      messages.add('덥고 꿉꿉해요. 통풍이 잘 되는 옷을 입으세요! 💦');
+    }
+
+    if (messages.isEmpty) {
+      return '활동하기 좋은 맑은 날씨예요. 예쁘게 코디해 볼까요? 🌤️';
+    }
+
+    return messages.take(2).join('\n');
   }
 
   Widget _buildSectionTitle(String title, String action) {

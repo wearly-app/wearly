@@ -447,9 +447,57 @@ class ClosetService {
   }
 
   void markAsWorn(ClothingItem item) {
+    final now = DateTime.now();
     item.wearCount++;
-    item.lastWornDate = DateTime.now();
+    item.lastWornDate = now;
     wardrobeNotifier.value = List.from(wardrobeNotifier.value);
+    
+    final history = List<WornRecord>.from(wornHistoryNotifier.value);
+    final todayIndex = history.indexWhere((r) => 
+      r.date.year == now.year && 
+      r.date.month == now.month && 
+      r.date.day == now.day && 
+      r.outfit.category == '데일리 코디'
+    );
+
+    if (todayIndex != -1) {
+      final existingRecord = history[todayIndex];
+      final existingOutfit = existingRecord.outfit;
+      
+      if (!existingOutfit.items.any((i) => i.id == item.id)) {
+        final newItems = List<ClothingItem>.from(existingOutfit.items)..add(item);
+        final newOutfit = SavedOutfit(
+          id: existingOutfit.id,
+          title: '오늘의 코디 (${newItems.length}벌)',
+          category: '데일리 코디',
+          items: newItems,
+          createdAt: existingOutfit.createdAt,
+        );
+        history[todayIndex] = WornRecord(
+          date: existingRecord.date,
+          outfit: newOutfit,
+          weather: existingRecord.weather,
+          temp: existingRecord.temp,
+        );
+      }
+    } else {
+      history.insert(
+          0,
+          WornRecord(
+            date: now,
+            outfit: SavedOutfit(
+              id: 'daily_${now.millisecondsSinceEpoch}',
+              title: '오늘의 코디 (1벌)',
+              category: '데일리 코디',
+              items: [item],
+              createdAt: now,
+            ),
+            weather: '☀️ 맑음',
+            temp: 27,
+          ));
+    }
+    
+    wornHistoryNotifier.value = history;
   }
 
   void saveOutfit(SavedOutfit outfit) {

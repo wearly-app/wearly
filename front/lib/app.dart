@@ -44,7 +44,7 @@ final GoRouter _router = GoRouter(
           path: 'ai-recommendation',
           builder: (context, state) {
             final style = state.uri.queryParameters['style'] ?? '캐주얼';
-            return RecommendationResultPage(selectedStyle: style);
+            return AiLoadingPage(selectedStyle: style);
           },
         ),
       ],

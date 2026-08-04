@@ -2,7 +2,6 @@ package com.wearly.infra.weather;
 
 import com.wearly.domain.weather.exception.WeatherErrorCode;
 import com.wearly.domain.weather.exception.WeatherException;
-import com.wearly.infra.weather.dto.OpenWeatherAirPollutionResponse;
 import com.wearly.infra.weather.dto.OpenWeatherForecastResponse;
 import com.wearly.infra.weather.dto.OpenWeatherResponse;
 import io.netty.channel.ChannelOption;
@@ -22,7 +21,6 @@ public class WeatherApiClient {
 
     private static final String CURRENT_WEATHER_URI = "/data/2.5/weather";
     private static final String FORECAST_URI = "/data/2.5/forecast";
-    private static final String AIR_POLLUTION_URI = "/data/2.5/air_pollution";
 
     private final WebClient webClient;
     private final WeatherApiProperties weatherApiProperties;
@@ -67,18 +65,6 @@ public class WeatherApiClient {
                 latitude,
                 longitude,
                 OpenWeatherForecastResponse.class
-        );
-    }
-
-    public OpenWeatherAirPollutionResponse getAirPollution(
-            Double latitude,
-            Double longitude
-    ) {
-        return request(
-                AIR_POLLUTION_URI,
-                latitude,
-                longitude,
-                OpenWeatherAirPollutionResponse.class
         );
     }
 

@@ -33,6 +33,11 @@ weather:
     key: ${WEATHER_API_KEY}
     base-url: https://api.openweathermap.org
 
+airkorea:
+  api:
+    key: ${AIRKOREA_API_KEY}
+    base-url: https://apis.data.go.kr/B552584
+
 rembg:
   api:
     base-url: ${REMBG_API_BASE_URL:http://localhost:8000}

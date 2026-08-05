@@ -3,6 +3,7 @@ package com.wearly.domain.clothes.service;
 import com.wearly.domain.clothes.dto.request.ClothesCreateRequest;
 import com.wearly.domain.clothes.dto.request.ClothesUpdateRequest;
 import com.wearly.domain.clothes.dto.response.ClothesResponse;
+import com.wearly.domain.clothes.dto.response.ClothesWearResponse;
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.domain.clothes.entity.Clothes;
 import com.wearly.domain.clothes.exception.ClothesErrorCode;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -120,6 +122,15 @@ public class ClothesService {
         Clothes clothes = getClothesByIdAndUserId(clothesId, userId);
 
         clothes.softDelete();
+    }
+
+    @Transactional
+    public ClothesWearResponse wearClothes(Long userId, Long clothesId) {
+        Clothes clothes = getClothesByIdAndUserId(clothesId, userId);
+
+        clothes.recordWear(LocalDate.now());
+
+        return ClothesWearResponse.from(clothes);
     }
 
     private User getUser(Long userId) {

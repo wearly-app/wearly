@@ -5,6 +5,7 @@ import com.wearly.domain.clothes.dto.request.ClothesUpdateRequest;
 import com.wearly.domain.clothes.dto.response.ClothesAnalyzeResponse;
 import com.wearly.domain.clothes.dto.response.ClothesResponse;
 import com.wearly.domain.clothes.dto.response.ClothesWearHistoryResponse;
+import com.wearly.domain.clothes.dto.response.ClothesWearResponse;
 import com.wearly.domain.clothes.dto.response.ProductSearchCandidate;
 import com.wearly.domain.clothes.entity.Category;
 import com.wearly.domain.clothes.service.ClothesService;
@@ -291,6 +292,23 @@ public class ClothesController {
                 principal.getUserId(),
                 id,
                 request
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "옷 단건 착용 기록",
+            description = "옷 하나를 오늘 착용한 것으로 기록한다. 착용 횟수를 1 증가시키고 마지막 착용일을 갱신한다."
+    )
+    @PostMapping("/{id}/wear")
+    public ResponseEntity<ClothesWearResponse> wearClothes(
+            @AuthenticationPrincipal WearlyUserPrincipal principal,
+            @PathVariable Long id
+    ) {
+        ClothesWearResponse response = clothesService.wearClothes(
+                principal.getUserId(),
+                id
         );
 
         return ResponseEntity.ok(response);

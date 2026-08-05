@@ -1,6 +1,7 @@
 package com.wearly.domain.outfit.dto.response;
 
 import com.wearly.domain.outfit.entity.OutfitHistory;
+import com.wearly.global.common.entity.Style;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -14,6 +15,7 @@ public class DailyWearHistoryResponse {
     private Long historyId;
     private Long outfitId;
     private String outfitName;
+    private Style style;
     private LocalDate wornDate;
     private List<OutfitClothesResponse> clothes;
 
@@ -25,6 +27,7 @@ public class DailyWearHistoryResponse {
                 .historyId(history.getId())
                 .outfitId(history.getOutfits().getId())
                 .outfitName(history.getOutfits().getName())
+                .style(history.getOutfits().getStyle())
                 .wornDate(history.getWornDate())
                 .clothes(clothes)
                 .build();

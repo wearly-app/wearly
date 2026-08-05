@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:front/features/user/closet/models/clothing_item.dart';
 import 'package:front/features/user/closet/models/recommendation_response.dart';
+import 'package:front/services/api_service.dart';
 
 
 class ClosetService {
@@ -47,7 +48,7 @@ class ClosetService {
         savedOutfitsNotifier.value.where((o) => o.id != outfit.id).toList();
   }
 
-  void wearOutfit(SavedOutfit outfit) {
+  Future<void> wearOutfit(SavedOutfit outfit) async {
     final now = DateTime.now();
     for (var cloth in outfit.items) {
       cloth.wearCount++;
@@ -63,9 +64,105 @@ class ClosetService {
           WornRecord(
             date: now,
             outfit: outfit,
-            weather: '☀️ 맑음',
-            temp: 27,
           ));
+
+    // Send it to the server so the calendar keeps the record.
+    await ApiService().wearOutfit(outfit.id);
+  }
+
+  /// Replace the calendar records with the server data for the given month.
+  Future<void> loadWornHistoryFromServer(int year, int month) async {
+    final api = ApiService();
+
+    final days = await api.getMonthlyWearHistory(year, month);
+    if (days.isEmpty) {
+      wornHistoryNotifier.value = [];
+      return;
+    }
+
+    final records = <WornRecord>[];
+
+    for (final day in days) {
+      final dateText = day['wornDate'] as String?;
+      if (dateText == null) continue;
+
+      final date = DateTime.parse(dateText);
+      final histories = await api.getDailyWearHistory(date);
+
+      for (final history in histories) {
+        final clothesJson = history['clothes'] as List<dynamic>? ?? [];
+        final items = clothesJson
+            .map((e) => _clothingFromServer(e as Map<String, dynamic>))
+            .toList();
+
+        records.add(WornRecord(
+          date: date,
+          outfit: SavedOutfit(
+            id: '${history['outfitId']}',
+            title: history['outfitName'] as String? ?? '코디',
+            category: _styleToKorean(history['style'] as String?),
+            items: items,
+            createdAt: date,
+          ),
+        ));
+      }
+    }
+
+    records.sort((a, b) => b.date.compareTo(a.date));
+    wornHistoryNotifier.value = records;
+  }
+
+  ClothingItem _clothingFromServer(Map<String, dynamic> json) {
+    return ClothingItem(
+      id: '${json['id']}',
+      name: json['name'] as String? ?? '이름 없음',
+      category: _categoryToKorean(json['category'] as String?),
+      brand: json['brand'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String?,
+      fallbackColor: Colors.grey.shade200,
+      fallbackIcon: Icons.checkroom,
+      seasons: const [],
+      situation: const [],
+      thickness: 2,
+      colorHex: '#FFFFFF',
+      styleLevel: 3,
+    );
+  }
+
+  String _styleToKorean(String? style) {
+    switch (style) {
+      case 'MINIMAL':
+        return '미니멀';
+      case 'STREET':
+        return '스트릿';
+      case 'SPORTY':
+        return '스포티';
+      case 'FORMAL':
+        return '격식';
+      case 'VINTAGE':
+        return '빈티지';
+      default:
+        return '캐주얼';
+    }
+  }
+
+  String _categoryToKorean(String? category) {
+    switch (category) {
+      case 'TOP':
+        return '상의';
+      case 'BOTTOM':
+        return '하의';
+      case 'OUTER':
+        return '아우터';
+      case 'ONEPIECE':
+        return '원피스';
+      case 'SHOES':
+        return '신발';
+      case 'BAG':
+        return '가방';
+      default:
+        return '기타';
+    }
   }
 
   void initializeDemoData() {
@@ -433,6 +530,71 @@ class ClosetService {
     wardrobeNotifier.value = List.from(items);
   }
 
+  /// Load the wardrobe from the server.
+  /// The wardrobe page fills this list on its own, but other pages
+  /// (코디 만들기 등) need the clothes too, so they can call this directly.
+  /// The server allows at most 50 items per page, so read the pages in order.
+  Future<void> loadWardrobeFromServer() async {
+    final items = <ClothingItem>[];
+    var page = 0;
+
+    while (true) {
+      final response = await ApiService().getClothingItems(page: page, size: 50);
+      if (response == null) break;
+
+      items.addAll(response.content.map(_wardrobeItemFromServer));
+
+      if (!response.hasNext) break;
+      page = response.page + 1;
+    }
+
+    if (items.isEmpty) return;
+
+    wardrobeNotifier.value = items;
+  }
+
+  ClothingItem _wardrobeItemFromServer(Map<String, dynamic> json) {
+    final category = _categoryToKorean(json['category'] as String?);
+    final style = _styleToKorean(json['style'] as String?);
+    final thickness = (json['thickness'] as num?)?.toInt() ?? 2;
+    final brand = json['brand'] as String? ?? '';
+    final name = json['name'] as String?;
+    final lastWornAt = json['lastWornAt'] as String?;
+    final h = (json['colorH'] as num?)?.toDouble() ?? 0;
+    final s = (json['colorS'] as num?)?.toDouble() ?? 0;
+    final v = (json['colorV'] as num?)?.toDouble() ?? 100;
+    final color = HSVColor.fromAHSV(1, h, s / 100, v / 100).toColor();
+    final colorHex =
+        '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+
+    return ClothingItem(
+      id: json['id'].toString(),
+      name: name?.isNotEmpty == true
+          ? name!
+          : (brand.isEmpty ? category : '$brand $category'),
+      category: category,
+      brand: brand.isEmpty ? 'No Brand' : brand,
+      imageUrl: json['imageUrl'] as String?,
+      fallbackColor: color,
+      fallbackIcon: Icons.dry_cleaning,
+      seasons: _seasonsForThickness(thickness),
+      situation: [style],
+      thickness: thickness,
+      colorHex: colorHex,
+      lastWornDate: lastWornAt == null ? null : DateTime.tryParse(lastWornAt),
+      wearCount: (json['wearCount'] as num?)?.toInt() ?? 0,
+      styleLevel: 2,
+      material: json['material'] as String?,
+      clo: (json['cloValue'] as num?)?.toDouble(),
+    );
+  }
+
+  List<String> _seasonsForThickness(int thickness) {
+    if (thickness == 1) return const ['여름'];
+    if (thickness == 3) return const ['겨울'];
+    return const ['봄', '가을'];
+  }
+
   void appendClothingItems(List<ClothingItem> items) {
     final merged = <String, ClothingItem>{
       for (final item in wardrobeNotifier.value) item.id: item,
@@ -446,58 +608,15 @@ class ClosetService {
         wardrobeNotifier.value.where((w) => w.id != id).toList();
   }
 
-  void markAsWorn(ClothingItem item) {
-    final now = DateTime.now();
+  Future<void> markAsWorn(ClothingItem item) async {
     item.wearCount++;
-    item.lastWornDate = now;
+    item.lastWornDate = DateTime.now();
     wardrobeNotifier.value = List.from(wardrobeNotifier.value);
-    
-    final history = List<WornRecord>.from(wornHistoryNotifier.value);
-    final todayIndex = history.indexWhere((r) => 
-      r.date.year == now.year && 
-      r.date.month == now.month && 
-      r.date.day == now.day && 
-      r.outfit.category == '데일리 코디'
-    );
 
-    if (todayIndex != -1) {
-      final existingRecord = history[todayIndex];
-      final existingOutfit = existingRecord.outfit;
-      
-      if (!existingOutfit.items.any((i) => i.id == item.id)) {
-        final newItems = List<ClothingItem>.from(existingOutfit.items)..add(item);
-        final newOutfit = SavedOutfit(
-          id: existingOutfit.id,
-          title: '오늘의 코디 (${newItems.length}벌)',
-          category: '데일리 코디',
-          items: newItems,
-          createdAt: existingOutfit.createdAt,
-        );
-        history[todayIndex] = WornRecord(
-          date: existingRecord.date,
-          outfit: newOutfit,
-          weather: existingRecord.weather,
-          temp: existingRecord.temp,
-        );
-      }
-    } else {
-      history.insert(
-          0,
-          WornRecord(
-            date: now,
-            outfit: SavedOutfit(
-              id: 'daily_${now.millisecondsSinceEpoch}',
-              title: '오늘의 코디 (1벌)',
-              category: '데일리 코디',
-              items: [item],
-              createdAt: now,
-            ),
-            weather: '☀️ 맑음',
-            temp: 27,
-          ));
-    }
-    
-    wornHistoryNotifier.value = history;
+    // Send it to the server so the wear count and last worn date are kept.
+    // This is a single item, not an outfit, so it does not create a
+    // calendar record.
+    await ApiService().wearClothingItem(item.id);
   }
 
   void saveOutfit(SavedOutfit outfit) {

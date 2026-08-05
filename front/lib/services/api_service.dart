@@ -710,4 +710,101 @@ class ApiService {
 
     return null;
   }
+
+  /// Record a single clothing item as worn today.
+  Future<Map<String, dynamic>?> wearClothingItem(String clothesId) async {
+    try {
+      final token = await getJwtToken();
+      if (token == null) return null;
+
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/clothes/$clothesId/wear'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes))
+            as Map<String, dynamic>;
+      }
+
+      print(
+        'Failed to record clothes wear: '
+        '${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
+    } catch (e) {
+      print('Error recording clothes wear: $e');
+    }
+
+    return null;
+  }
+
+  /// Load the days that have wear records in the given month.
+  Future<List<Map<String, dynamic>>> getMonthlyWearHistory(
+    int year,
+    int month,
+  ) async {
+    try {
+      final token = await getJwtToken();
+      if (token == null) return [];
+
+      final response = await http.get(
+        Uri.parse(
+          '${AppConfig.apiBaseUrl}/api/histories/monthly'
+          '?year=$year&month=$month',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final days = data['days'] as List<dynamic>? ?? [];
+        return days.cast<Map<String, dynamic>>();
+      }
+
+      print(
+        'Failed to load monthly wear history: '
+        '${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
+    } catch (e) {
+      print('Error loading monthly wear history: $e');
+    }
+
+    return [];
+  }
+
+  /// Load the outfits worn on the given date.
+  Future<List<Map<String, dynamic>>> getDailyWearHistory(DateTime date) async {
+    final dateText = date.toIso8601String().substring(0, 10);
+
+    try {
+      final token = await getJwtToken();
+      if (token == null) return [];
+
+      final response = await http.get(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/histories/daily?date=$dateText'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+        return data.cast<Map<String, dynamic>>();
+      }
+
+      print(
+        'Failed to load daily wear history: '
+        '${response.statusCode} - ${utf8.decode(response.bodyBytes)}',
+      );
+    } catch (e) {
+      print('Error loading daily wear history: $e');
+    }
+
+    return [];
+  }
 }

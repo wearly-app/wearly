@@ -16,6 +16,19 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
+  void initState() {
+    super.initState();
+    _loadMonth();
+  }
+
+  void _loadMonth() {
+    ClosetService.instance.loadWornHistoryFromServer(
+      _currentMonth.year,
+      _currentMonth.month,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final year = _currentMonth.year;
     final month = _currentMonth.month;
@@ -33,7 +46,7 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF1A1A1A)),
-            onPressed: () => setState(() {}),
+            onPressed: _loadMonth,
           )
         ],
       ),
@@ -80,6 +93,7 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                         _currentMonth.month - 1);
                                   }
                                 });
+                                _loadMonth();
                               },
                             ),
                             Text(
@@ -101,6 +115,7 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                         _currentMonth.month + 1);
                                   }
                                 });
+                                _loadMonth();
                               },
                             ),
                           ],
@@ -408,25 +423,6 @@ class _CodiCalendarPageState extends State<CodiCalendarPage> {
                                       ),
                                     ),
                                   ],
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Text(
-                                    record.weather,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '${record.temp}°C',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: record.temp >= 25
-                                          ? Colors.orange.shade700
-                                          : Colors.blue.shade700,
-                                    ),
-                                  ),
                                 ],
                               ),
                             ],

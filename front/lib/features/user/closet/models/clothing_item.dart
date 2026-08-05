@@ -86,7 +86,7 @@ class WornRecord {
   WornRecord({
     required this.date,
     required this.outfit,
-    required this.weather,
-    required this.temp,
+    this.weather = '',
+    this.temp = 0,
   });
 }

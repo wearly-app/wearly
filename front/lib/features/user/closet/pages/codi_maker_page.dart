@@ -47,6 +47,17 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
   @override
   void initState() {
     super.initState();
+
+    // The wardrobe is only filled by the wardrobe page, so load it here too.
+    // Otherwise the user has to open 전체 옷 관리 first or the canvas is empty.
+    if (ClosetService.instance.wardrobeNotifier.value.isEmpty) {
+      ClosetService.instance.loadWardrobeFromServer().then((_) {
+        // This page reads the wardrobe directly instead of listening to it,
+        // so redraw once the clothes have arrived.
+        if (mounted) setState(() {});
+      });
+    }
+
     if (widget.isAIRecommendedMode) {
       _activeRescueDay = '6/6';
       _scenarioClickCount = 1; // 6/6 completed state simulation
@@ -202,8 +213,6 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
                 ),
                 child: Column(
                   children: [
-                    if (widget.isAIRecommendedMode)
-                      _buildWeatherTimeline(canvasW),
                     Expanded(
                       child: GestureDetector(
                         onTap: () => setState(() => _selectedId = null),
@@ -487,129 +496,6 @@ class _CodiMakerPageState extends State<CodiMakerPage> {
             const SizedBox(height: 8),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildWeatherTimeline(double canvasW) {
-    String dateStr = '6/6 (오늘)';
-    String tempStr = '28°C ⛅';
-    String weatherDesc = '구름조금';
-
-    if (_activeRescueDay == '6/6' || _activeRescueDay == '6/6_28') {
-      dateStr = '6/6 (오늘)';
-      tempStr = '28°C ⛅';
-      weatherDesc = '구름조금';
-    } else if (_activeRescueDay == '6/7' || _activeRescueDay == '6/7_21') {
-      dateStr = '6/7 (내일)';
-      tempStr = '21°C 🌧️';
-      weatherDesc = '비/흐림';
-    } else if (_activeRescueDay == '6/8' || _activeRescueDay == '6/8_27') {
-      dateStr = '6/8 (모레)';
-      tempStr = '27°C ☀️';
-      weatherDesc = '맑음 (초여름)';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        border:
-            Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Icon(
-                  tempStr.contains('☀️')
-                      ? Icons.wb_sunny
-                      : (tempStr.contains('⛅')
-                          ? Icons.wb_cloudy_outlined
-                          : Icons.cloudy_snowing),
-                  size: 18,
-                  color: tempStr.contains('☀️')
-                      ? Colors.orange
-                      : (tempStr.contains('⛅') ? Colors.amber : Colors.blue),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$dateStr 날씨 정보',
-                        style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey.shade500,
-                            fontWeight: FontWeight.w500),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$tempStr · $weatherDesc',
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF333333)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: GestureDetector(
-              onTap: _triggerDayWarpScenario,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF9C27B0), Color(0xFF3F51B5)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF9C27B0).withValues(alpha: 0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    )
-                  ],
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome,
-                          color: Colors.white, size: 12),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'AI 추천: 날씨 맞춤 방치 의류 구출!',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
